@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Мой Мессенджер</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; display: flex; flex-direction: column; }
+#chat-container { display: flex; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+#messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.msg { background: #2c2c2c; padding: 10px 15px; border-radius: 8px; max-width: 85%; word-wrap: break-word; align-self: flex-start; }
+.msg b { color: #00f2ff; display: block; font-size: 0.85em; margin-bottom: 5px; }
+#input-area { display: flex; padding: 10px; background: #1e1e1e; border-top: 1px solid #333; gap: 10px; }
+input { padding: 12px; border: 1px solid #444; border-radius: 6px; background: #2a2a2a; color: white; outline: none; font-size: 16px; }
+#username { width: 80px; }
+#text-input { flex-grow: 1; }
+button { background: #00f2ff; color: #000; border: none; padding: 0 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="chat-container">
+<div id="messages"></div>
+<div id="input-area">
+<input type="text" id="username" placeholder="Имя" autocomplete="off">
+<input type="text" id="text-input" placeholder="Сообщение..." autocomplete="off">
+<button onclick="sendMessage()">➤</button>
+</div>
+</div>
+
+<script>
+const socket = io();
+const usernameInput = document.getElementById('username');
+const textInput = document.getElementById('text-input');
+const messages = document.getElementById('messages');
+
+// Восстанавливаем имя, если уже вводили
+usernameInput.value = localStorage.getItem('chat_name') || '';
+
+function sendMessage() {
+const text = textInput.value.trim();
+const user = usernameInput.value.trim() || 'Аноним';
+
+if (text) {
+// Сохраняем имя в память браузера
+localStorage.setItem('chat_name', user);
+socket.emit('chat_message', { user: user, text: text });
+textInput.value = '';
+}
+}
+
+textInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+socket.on('chat_message', (data) => {
+const div = document.createElement('div');
+div.className = 'msg';
+div.innerHTML = `<b>${data.user}</b>${data.text}`;
+messages.appendChild(div);
+messages.scrollTop = messages.scrollHeight;
+});
+</script>
+
+</body>
+</html>
