@@ -4,11 +4,15 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:4zb3uMS8TTKaMnQZ@cluster0.p0qzvcu.mongodb.net/messenger?retryWrites=true&w=majority';
+// Твоя рабочая ссылка из логов. Убедись, что пароль верный.
+const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:4zb3uMS8TTKaMnQZ@cluster0.p8qzvcu.mongodb.net/messenger?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
 .then(() => console.log("--- ПОБЕДА: БАЗА ПОДКЛЮЧЕНА ---"))
-.catch((err) => console.log("ОШИБКА БАЗЫ: " + err.message));
+.catch((err) => {
+console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
+console.log(err.message);
+});
 
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
 const Message = mongoose.model('Message', new mongoose.Schema({ room: String, user: String, text: String, time: { type: Date, default: Date.now } }));
@@ -57,4 +61,4 @@ io.to(currentRoom).emit('chat_message', msg);
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => console.log("Сервер запущен"));
+http.listen(PORT, () => console.log("Сервер запущен на порту: " + PORT));
