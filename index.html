@@ -6,79 +6,85 @@
 <title>Messenger Pro</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { margin: 0; background: #121212; color: white; font-family: sans-serif; }
+body { margin: 0; background: #121212; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
 .hidden { display: none !important; }
-#auth, #chat { display: flex; flex-direction: column; height: 100vh; align-items: center; justify-content: center; }
-#chat { justify-content: flex-start; }
-.box { background: #1e1e1e; padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; width: 300px; }
-input { padding: 10px; border-radius: 5px; border: 1px solid #333; background: #222; color: white; }
-button { padding: 10px; border: none; border-radius: 5px; background: #00f2ff; color: black; font-weight: bold; cursor: pointer; }
-#messages { flex-grow: 1; width: 100%; max-width: 600px; overflow-y: auto; padding: 20px; box-sizing: border-box; }
-.msg { background: #262626; padding: 8px 12px; border-radius: 10px; margin-bottom: 8px; width: fit-content; max-width: 80%; }
-.msg b { color: #00f2ff; font-size: 0.8em; display: block; }
+.box { background: #1e1e1e; padding: 25px; border-radius: 15px; display: flex; flex-direction: column; gap: 15px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+input { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #262626; color: white; outline: none; }
+button { padding: 12px; border: none; border-radius: 8px; background: #00f2ff; color: black; font-weight: bold; cursor: pointer; transition: 0.3s; }
+button:hover { background: #00c8d4; }
+#chat-container { width: 100%; max-width: 800px; height: 90vh; background: #1e1e1e; border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; }
+#messages { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.msg { background: #2b2b2b; padding: 10px 15px; border-radius: 12px; width: fit-content; max-width: 80%; }
+.msg b { color: #00f2ff; display: block; font-size: 0.85em; margin-bottom: 4px; }
+.input-area { padding: 20px; background: #252525; display: flex; gap: 10px; }
 </style>
 </head>
 <body>
 
-<div id="auth">
+<div id="auth-screen">
 <div class="box">
-<h3 style="text-align:center">Вход / Регистрация</h3>
-<input type="text" id="user" placeholder="Логин">
-<input type="password" id="pass" placeholder="Пароль">
-<button onclick="doLogin()">ВОЙТИ</button>
+<h2 style="text-align:center; margin: 0 0 10px 0;">Вход</h2>
+<input type="text" id="username" placeholder="Логин">
+<input type="password" id="password" placeholder="Пароль">
+<button onclick="login()">ВОЙТИ</button>
 </div>
 </div>
 
-<div id="chat" class="hidden">
-<div style="width: 100%; background: #1e1e1e; padding: 10px; display: flex; justify-content: center; gap: 10px;">
-<input type="text" id="room" placeholder="Название группы" style="width: 150px;">
-<button onclick="doJoin()">Сменить группу</button>
+<div id="chat-screen" class="hidden">
+<div id="chat-container">
+<div style="padding: 15px; background: #252525; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+<span id="display-user" style="color: #00f2ff; font-weight: bold;"></span>
+<input type="text" id="room-name" placeholder="Комната" style="padding: 5px; width: 100px;" onchange="changeRoom()">
 </div>
 <div id="messages"></div>
-<div style="width: 100%; max-width: 600px; display: flex; padding: 10px; gap: 10px; box-sizing: border-box;">
-<input type="text" id="mText" style="flex-grow: 1;" placeholder="Сообщение...">
-<button onclick="doSend()">Отправить</button>
+<div class="input-area">
+<input type="text" id="message-text" style="flex-grow: 1;" placeholder="Напишите сообщение...">
+<button onclick="sendMessage()">Отправить</button>
+</div>
 </div>
 </div>
 
 <script>
 const socket = io();
+let myName = "";
 
-function doLogin() {
-const username = document.getElementById('user').value;
-const pass = document.getElementById('pass').value;
-if(username && pass) socket.emit('login', { username, pass });
+function login() {
+const u = document.getElementById('username').value;
+const p = document.getElementById('password').value;
+if(u && p) socket.emit('login', { username: u, pass: p });
 }
 
-socket.on('login_success', () => {
-document.getElementById('auth').classList.add('hidden');
-document.getElementById('chat').classList.remove('hidden');
-doJoin('Общий');
+socket.on('login_success', (name) => {
+myName = name;
+document.getElementById('display-user').innerText = "Вы: " + name;
+document.getElementById('auth-screen').classList.add('hidden');
+document.getElementById('chat-screen').classList.remove('hidden');
+socket.emit('join_room', 'Общий');
 });
 
-socket.on('login_error', (m) => alert(m));
+socket.on('login_error', (err) => alert(err));
 
-function doJoin(name) {
-const room = name || document.getElementById('room').value || 'Общий';
+function changeRoom() {
+const room = document.getElementById('room-name').value || 'Общий';
 document.getElementById('messages').innerHTML = '';
 socket.emit('join_room', room);
 }
 
-socket.on('history', (list) => list.forEach(m => drawMsg(m)));
-socket.on('chat_message', (m) => drawMsg(m));
-
-function doSend() {
-const i = document.getElementById('mText');
-if(i.value) { socket.emit('chat_message', i.value); i.value = ''; }
+function sendMessage() {
+const inp = document.getElementById('message-text');
+if(inp.value) { socket.emit('chat_message', inp.value); inp.value = ''; }
 }
 
-function drawMsg(data) {
-const d = document.createElement('div');
-d.className = 'msg';
-d.innerHTML = `<b>${data.user}</b>${data.text}`;
-const container = document.getElementById('messages');
-container.appendChild(d);
-container.scrollTop = container.scrollHeight;
+socket.on('history', (msgs) => msgs.forEach(m => addMsg(m)));
+socket.on('chat_message', (m) => addMsg(m));
+
+function addMsg(data) {
+const div = document.createElement('div');
+div.className = 'msg';
+div.innerHTML = `<b>${data.user}</b> ${data.text}`;
+const box = document.getElementById('messages');
+box.appendChild(div);
+box.scrollTop = box.scrollHeight;
 }
 </script>
 </body>
