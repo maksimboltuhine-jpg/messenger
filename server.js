@@ -4,15 +4,18 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// ДЛИННАЯ ССЫЛКА (Fix для ошибки ENOTFOUND)
-// Вставлен твой пароль: KdTKqIVfR1zhkVqD
-const MONGO_URI = 'mongodb://maksimboltuhine_db_user:KdTKqIVfR1zhkVqD@cluster0-shard-00-00.p8qzvcu.mongodb.net:27017,cluster0-shard-00-01.p8qzvcu.mongodb.net:27017,cluster0-shard-00-02.p8qzvcu.mongodb.net:27017/messenger?ssl=true&replicaSet=atlas-p8qzvcu-shard-0&authSource=admin&retryWrites=true&w=majority';
+// НОВЫЙ ПАРОЛЬ: Messenger12345
+// Если поменял пароль в Atlas, проверь, чтобы здесь он был таким же
+const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Messenger12345@cluster0-shard-00-00.p8qzvcu.mongodb.net:27017,cluster0-shard-00-01.p8qzvcu.mongodb.net:27017,cluster0-shard-00-02.p8qzvcu.mongodb.net:27017/messen..';
 
-mongoose.connect(MONGO_URI)
-.then(() => console.log("--- ПОБЕДА: БАЗА ПОДКЛЮЧЕНА ЧЕРЕЗ DIRECT LINK ---"))
+mongoose.connect(MONGO_URI, {
+serverSelectionTimeoutMS: 5000, // Ждать ответа от базы не дольше 5 секунд
+connectTimeoutMS: 10000,
+})
+.then(() => console.log("--- ПОБЕДА: БАЗА ПОДКЛЮЧЕНА ---"))
 .catch((err) => {
-console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
-console.log(err.message);
+console.log("--- ОШИБКА ПОДКЛЮЧЕНИЯ ---");
+console.log("Сообщение:", err.message);
 });
 
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
@@ -22,11 +25,9 @@ app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
 let currentUser = null;
-let currentRoom = 'Общий';
-
 socket.on('login', async (data) => {
 try {
-if (!data.username || !data.pass) return socket.emit('login_error', 'Заполни все поля');
+if (!data.username || !data.pass) return socket.emit('login_error', 'Поля пусты');
 let user = await User.findOne({ username: data.username });
 if (!user) {
 user = new User({ username: data.username, pass: data.pass });
@@ -37,29 +38,23 @@ return socket.emit('login_error', 'Неверный пароль');
 currentUser = user.username;
 socket.emit('login_success', user.username);
 } catch (e) {
-socket.emit('login_error', 'Ошибка базы данных');
+socket.emit('login_error', 'База всё еще спит...');
 }
 });
 
-socket.on('join_room', async (roomName) => {
-if (currentRoom) socket.leave(currentRoom);
-currentRoom = roomName || 'Общий';
-socket.join(currentRoom);
-try {
-const history = await Message.find({ room: currentRoom }).sort({ time: 1 }).limit(50);
+socket.on('join_room', async (room) => {
+socket.join('Общий');
+const history = await Message.find({ room: 'Общий' }).sort({ time: 1 }).limit(50);
 socket.emit('history', history);
-} catch (e) { console.log("Ошибка истории"); }
 });
 
 socket.on('chat_message', async (text) => {
 if (!currentUser) return;
-try {
-const msg = new Message({ room: currentRoom, user: currentUser, text: text });
+const msg = new Message({ room: 'Общий', user: currentUser, text: text });
 await msg.save();
-io.to(currentRoom).emit('chat_message', msg);
-} catch (e) { console.log("Ошибка сохранения"); }
+io.to('Общий').emit('chat_message', msg);
 });
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => console.log("Сервер запущен на порту: " + PORT));
+http.listen(PORT, () => console.log("Сервер онлайн на порту " + PORT));
