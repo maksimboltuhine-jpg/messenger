@@ -2,65 +2,60 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
-const mongoose = require('mongoose');
 
-// СТАРЫЙ ФОРМАТ ССЫЛКИ (БЕЗ SRV) - САМЫЙ НАДЕЖНЫЙ
-const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Messenger12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/mess..';
-
-const connectWithRetry = () => {
-console.log('--- ПОПЫТКА ПОДКЛЮЧЕНИЯ К БАЗЕ... ---');
-mongoose.connect(MONGO_URI)
-.then(() => console.log("--- ПОБЕДА: БАЗА ДАННЫХ НА СВЯЗИ! ---"))
-.catch((err) => {
-console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
-console.log("Текст:", err.message);
-setTimeout(connectWithRetry, 5000);
-});
+// Память сервера для сообщений
+const roomsData = {
+'Общий': []
 };
-
-connectWithRetry();
-
-// Модели
-const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
-const Message = mongoose.model('Message', new mongoose.Schema({ room: String, user: String, text: String, time: { type: Date, default: Date.now } }));
 
 app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
-let currentUser = null;
-socket.on('login', async (data) => {
-try {
-let user = await User.findOne({ username: data.username });
-if (!user) {
-user = new User({ username: data.username, pass: data.pass });
-await user.save();
-} else if (user.pass !== data.pass) {
-return socket.emit('login_error', 'Неверный пароль');
-}
-currentUser = user.username;
-socket.emit('login_success', user.username);
-} catch (e) {
-socket.emit('login_error', 'База все еще спит...');
-}
+let currentUser = 'Аноним';
+let currentRoom = 'Общий';
+
+console.log('Кто-то зашел в сеть');
+
+// Вход
+socket.on('set_user', (username) => {
+currentUser = username || 'Аноним';
+socket.emit('login_success', currentUser);
+console.log(`Пользователь ${currentUser} готов к общению`);
 });
 
-socket.on('join_room', async () => {
-socket.join('Общий');
-try {
-const history = await Message.find({ room: 'Общий' }).sort({ time: 1 }).limit(50);
-socket.emit('history', history);
-} catch (e) { console.log("Ошибка истории"); }
+// Переход в группу
+socket.on('join_room', (roomName) => {
+socket.leave(currentRoom);
+currentRoom = roomName || 'Общий';
+socket.join(currentRoom);
+
+if (!roomsData[currentRoom]) {
+roomsData[currentRoom] = [];
+}
+
+socket.emit('history', roomsData[currentRoom]);
+socket.emit('room_changed', currentRoom);
 });
 
-socket.on('chat_message', async (text) => {
-if (!currentUser) return;
-try {
-const msg = new Message({ room: 'Общий', user: currentUser, text: text });
-await msg.save();
-io.to('Общий').emit('chat_message', msg);
-} catch (e) { console.log("Ошибка сохранения"); }
+// Сообщение
+socket.on('chat_message', (text) => {
+if (!text) return;
+
+const msg = {
+user: currentUser,
+text: text,
+time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+};
+
+roomsData[currentRoom].push(msg);
+// Храним только последние 50 сообщений в каждой группе
+if (roomsData[currentRoom].length > 50) roomsData[currentRoom].shift();
+
+io.to(currentRoom).emit('chat_message', msg);
 });
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => console.log(`Сервер работает на порту: ${PORT}`));
+http.listen(PORT, () => {
+console.log(`--- ЧАТ ЗАПУЩЕН НА ПОРТУ ${PORT} ---`);
+});
