@@ -4,11 +4,12 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// ИСПРАВЛЕНО: Прямая ссылка на твой кластер с актуальным паролем
-const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:XSdm7rcEU8EDywaM@cluster0.p8qzvcu.mongodb.net/messenger?retryWrites=true&w=majority';
+// ДЛИННАЯ ССЫЛКА (Fix для ошибки ENOTFOUND)
+// Вставлен твой пароль: KdTKqIVfR1zhkVqD
+const MONGO_URI = 'mongodb://maksimboltuhine_db_user:KdTKqIVfR1zhkVqD@cluster0-shard-00-00.p8qzvcu.mongodb.net:27017,cluster0-shard-00-01.p8qzvcu.mongodb.net:27017,cluster0-shard-00-02.p8qzvcu.mongodb.net:27017/messenger?ssl=true&replicaSet=atlas-p8qzvcu-shard-0&authSource=admin&retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
-.then(() => console.log("--- СИСТЕМА: БАЗА ДАННЫХ ПОДКЛЮЧЕНА ---"))
+.then(() => console.log("--- ПОБЕДА: БАЗА ПОДКЛЮЧЕНА ЧЕРЕЗ DIRECT LINK ---"))
 .catch((err) => {
 console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
 console.log(err.message);
@@ -47,7 +48,7 @@ socket.join(currentRoom);
 try {
 const history = await Message.find({ room: currentRoom }).sort({ time: 1 }).limit(50);
 socket.emit('history', history);
-} catch (e) { console.log("Ошибка загрузки истории"); }
+} catch (e) { console.log("Ошибка истории"); }
 });
 
 socket.on('chat_message', async (text) => {
@@ -56,9 +57,9 @@ try {
 const msg = new Message({ room: currentRoom, user: currentUser, text: text });
 await msg.save();
 io.to(currentRoom).emit('chat_message', msg);
-} catch (e) { console.log("Ошибка сохранения сообщения"); }
+} catch (e) { console.log("Ошибка сохранения"); }
 });
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => console.log(`Сервер работает на порту: ${PORT}`));
+http.listen(PORT, () => console.log("Сервер запущен на порту: " + PORT));
