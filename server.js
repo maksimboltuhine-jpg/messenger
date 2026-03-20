@@ -4,20 +4,19 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// Вставь свою ссылку СЮДА (внутри кавычек)
-const MONGO_URI = 'ТВОЯ_ССЫЛКА_ИЗ_MONGODB';
+// ССЫЛКУ ВСТАВЛЯТЬ СЮДА МЕЖДУ КАВЫЧЕК
+const MONGO_URI = 'ВСТАВЬ_СЮДА_ССЫЛКУ_ИЗ_MONGODB_ATLAS';
 
-// Настройка подключения (теперь раздельно и с обработкой ошибок)
 mongoose.connect(MONGO_URI)
 .then(() => {
-console.log("--- СИСТЕМА ---");
-console.log("База данных: ПОДКЛЮЧЕНА");
+console.log("--- УСПЕХ: БАЗА ПОДКЛЮЧЕНА ---");
 })
 .catch((err) => {
-console.log("--- ОШИБКА БАЗЫ ---");
+console.log("--- ОШИБКА ПОДКЛЮЧЕНИЯ К БАЗЕ ---");
 console.log(err.message);
 });
 
+// Схемы данных
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
 const Message = mongoose.model('Message', new mongoose.Schema({ room: String, user: String, text: String, time: { type: Date, default: Date.now } }));
 
@@ -42,6 +41,7 @@ return;
 }
 currentUser = user.username;
 } catch (e) {
+console.log("Ошибка входа:", e.message);
 socket.emit('login_error', 'Ошибка базы данных');
 }
 });
@@ -50,21 +50,27 @@ socket.on('join_room', async (room) => {
 if (currentRoom) socket.leave(currentRoom);
 currentRoom = room || 'general';
 socket.join(currentRoom);
+try {
 const history = await Message.find({ room: currentRoom }).sort({ time: 1 }).limit(50);
 socket.emit('history', history);
+} catch (e) {
+console.log("Ошибка загрузки истории:", e.message);
+}
 });
 
 socket.on('chat_message', async (text) => {
 if (!currentUser || !currentRoom) return;
+try {
 const msg = new Message({ room: currentRoom, user: currentUser, text: text });
 await msg.save();
 io.to(currentRoom).emit('chat_message', msg);
+} catch (e) {
+console.log("Ошибка сохранения сообщения:", e.message);
+}
 });
 });
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-console.log("---------------------------");
-console.log("Сервер запущен на порту: " + PORT);
-console.log("---------------------------");
+console.log("Сервер работает на порту: " + PORT);
 });
