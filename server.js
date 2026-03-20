@@ -4,23 +4,23 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// ВАЖНО: Я добавил +srv обратно, но убрал все лишние параметры в конце.
-// Пароль: Messenger12345
-const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Messenger12345@cluster0.p8qzvcu.mongodb.net/messenger?retryWrites=true&w=majority';
+// СТАРЫЙ ФОРМАТ ССЫЛКИ (БЕЗ SRV) - САМЫЙ НАДЕЖНЫЙ
+const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Messenger12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/messenger?ssl=true&replicaSet=atlas-7yliej-shard-0&authSource=admin';
 
 const connectWithRetry = () => {
 console.log('--- ПОПЫТКА ПОДКЛЮЧЕНИЯ К БАЗЕ... ---');
 mongoose.connect(MONGO_URI)
 .then(() => console.log("--- ПОБЕДА: БАЗА ДАННЫХ НА СВЯЗИ! ---"))
 .catch((err) => {
-console.log("--- ОШИБКА: БАЗА ВСЕ ЕЩЕ БЛОКИРУЕТ IP ---");
-console.log("Пробую еще раз через 5 секунд...");
-setTimeout(connectWithRetry, 5000); // Рекурсивный повтор
+console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
+console.log("Текст:", err.message);
+setTimeout(connectWithRetry, 5000);
 });
 };
 
 connectWithRetry();
 
+// Модели
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
 const Message = mongoose.model('Message', new mongoose.Schema({ room: String, user: String, text: String, time: { type: Date, default: Date.now } }));
 
@@ -40,7 +40,7 @@ return socket.emit('login_error', 'Неверный пароль');
 currentUser = user.username;
 socket.emit('login_success', user.username);
 } catch (e) {
-socket.emit('login_error', 'База спит, подожди 10 сек...');
+socket.emit('login_error', 'База все еще спит...');
 }
 });
 
@@ -63,4 +63,4 @@ io.to('Общий').emit('chat_message', msg);
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => console.log(`Сервер на порту ${PORT}`));
+http.listen(PORT, () => console.log(`Сервер работает на порту: ${PORT}`));
