@@ -4,7 +4,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// Твоя ссылка с НОВЫМ паролем из скриншота
+// ИСПРАВЛЕННАЯ ССЫЛКА (убрал адрес сайта, вставил адрес базы)
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:4zb3uMS8TTKaMnQZ@cluster0.p0qzvcu.mongodb.net/messenger?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
@@ -13,7 +13,7 @@ console.log("--- ПОБЕДА: БАЗА ПОДКЛЮЧЕНА УСПЕШНО ---"
 })
 .catch((err) => {
 console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
-console.log("Детали: " + err.message);
+console.log("Текст ошибки: " + err.message);
 });
 
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
@@ -37,7 +37,7 @@ return socket.emit('login_error', 'Неверный пароль');
 currentUser = user.username;
 socket.emit('login_success', user.username);
 } catch (e) {
-console.log("Ошибка БД при входе: " + e.message);
+console.log("Ошибка БД: " + e.message);
 socket.emit('login_error', 'База данных недоступна');
 }
 });
