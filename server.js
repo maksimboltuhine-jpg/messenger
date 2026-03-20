@@ -5,7 +5,7 @@ const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
 // СТАРЫЙ ФОРМАТ ССЫЛКИ (БЕЗ SRV) - САМЫЙ НАДЕЖНЫЙ
-const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Messenger12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/messenger?ssl=true&replicaSet=atlas-7yliej-shard-0&authSource=admin';
+const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Messenger12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/mess..';
 
 const connectWithRetry = () => {
 console.log('--- ПОПЫТКА ПОДКЛЮЧЕНИЯ К БАЗЕ... ---');
