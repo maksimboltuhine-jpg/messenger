@@ -4,7 +4,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// ИСПРАВЛЕННАЯ ССЫЛКА (убрал адрес сайта, вставил адрес базы)
+// ИСПРАВЛЕННАЯ ССЫЛКА (Убрал адрес сайта, оставил только адрес базы)
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:4zb3uMS8TTKaMnQZ@cluster0.p0qzvcu.mongodb.net/messenger?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
@@ -12,8 +12,8 @@ mongoose.connect(MONGO_URI)
 console.log("--- ПОБЕДА: БАЗА ПОДКЛЮЧЕНА УСПЕШНО ---");
 })
 .catch((err) => {
-console.log("--- КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ---");
-console.log("Текст ошибки: " + err.message);
+console.log("--- ОШИБКА ПОДКЛЮЧЕНИЯ К БАЗЕ ---");
+console.log("Детали: " + err.message);
 });
 
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
