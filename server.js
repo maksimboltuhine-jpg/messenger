@@ -4,19 +4,16 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// ССЫЛКУ ВСТАВЛЯТЬ СЮДА МЕЖДУ КАВЫЧЕК
-const MONGO_URI = 'ВСТАВЬ_СЮДА_ССЫЛКУ_ИЗ_MONGODB_ATLAS';
+// ВСТАВЬ ССЫЛКУ НИЖЕ. Пример: 'mongodb+srv://user:pass@cluster.mongodb.net/myDB'
+const MONGO_URI = 'ТВОЯ_ПОЛНАЯ_ССЫЛКА_ИЗ_MONGODB_ATLAS';
 
 mongoose.connect(MONGO_URI)
-.then(() => {
-console.log("--- УСПЕХ: БАЗА ПОДКЛЮЧЕНА ---");
-})
+.then(() => console.log("--- УСПЕХ: БАЗА ПОДКЛЮЧЕНА ---"))
 .catch((err) => {
-console.log("--- ОШИБКА ПОДКЛЮЧЕНИЯ К БАЗЕ ---");
-console.log(err.message);
+console.log("--- ОШИБКА КОНФИГУРАЦИИ БАЗЫ ---");
+console.log("Текст ошибки: " + err.message);
 });
 
-// Схемы данных
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
 const Message = mongoose.model('Message', new mongoose.Schema({ room: String, user: String, text: String, time: { type: Date, default: Date.now } }));
 
@@ -36,26 +33,23 @@ socket.emit('login_success', user.username);
 } else if (user.pass === data.pass) {
 socket.emit('login_success', user.username);
 } else {
-socket.emit('login_error', 'Неверный пароль!');
+socket.emit('login_error', 'Неверный пароль или логин занят');
 return;
 }
 currentUser = user.username;
 } catch (e) {
-console.log("Ошибка входа:", e.message);
-socket.emit('login_error', 'Ошибка базы данных');
+socket.emit('login_error', 'База данных недоступна');
 }
 });
 
-socket.on('join_room', async (room) => {
+socket.on('join_room', async (roomName) => {
 if (currentRoom) socket.leave(currentRoom);
-currentRoom = room || 'general';
+currentRoom = roomName || 'Общий';
 socket.join(currentRoom);
 try {
 const history = await Message.find({ room: currentRoom }).sort({ time: 1 }).limit(50);
 socket.emit('history', history);
-} catch (e) {
-console.log("Ошибка загрузки истории:", e.message);
-}
+} catch (e) { console.log("Ошибка истории:", e.message); }
 });
 
 socket.on('chat_message', async (text) => {
@@ -64,13 +58,9 @@ try {
 const msg = new Message({ room: currentRoom, user: currentUser, text: text });
 await msg.save();
 io.to(currentRoom).emit('chat_message', msg);
-} catch (e) {
-console.log("Ошибка сохранения сообщения:", e.message);
-}
+} catch (e) { console.log("Ошибка сохранения:", e.message); }
 });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-console.log("Сервер работает на порту: " + PORT);
-});
+http.listen(PORT, () => console.log("Сервер запущен на порту: " + PORT));
