@@ -4,14 +4,14 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const mongoose = require('mongoose');
 
-// Твоя проверенная ссылка из MongoDB Atlas
+// Чистая ссылка без лишних символов и _top
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:nmH7ay41x3f7SL2b@cluster0.mongodb.net/messenger?retryWrites=true&w=majority';
 
 mongoose.connect(MONGO_URI)
 .then(() => console.log("--- УСПЕХ: БАЗА ПОДКЛЮЧЕНА ---"))
 .catch((err) => {
 console.log("--- ОШИБКА ПОДКЛЮЧЕНИЯ ---");
-console.log("Детали: " + err.message);
+console.log("Текст ошибки: " + err.message);
 });
 
 const User = mongoose.model('User', new mongoose.Schema({ username: String, pass: String }));
@@ -33,12 +33,12 @@ socket.emit('login_success', user.username);
 } else if (user.pass === data.pass) {
 socket.emit('login_success', user.username);
 } else {
-socket.emit('login_error', 'Неверный пароль или имя занято');
+socket.emit('login_error', 'Неверный пароль!');
 return;
 }
 currentUser = user.username;
 } catch (e) {
-socket.emit('login_error', 'Ошибка базы данных');
+socket.emit('login_error', 'База данных недоступна');
 }
 });
 
@@ -49,7 +49,7 @@ socket.join(currentRoom);
 try {
 const history = await Message.find({ room: currentRoom }).sort({ time: 1 }).limit(50);
 socket.emit('history', history);
-} catch (e) { console.log("Ошибка загрузки сообщений"); }
+} catch (e) { console.log("Ошибка загрузки истории"); }
 });
 
 socket.on('chat_message', async (text) => {
@@ -58,9 +58,9 @@ try {
 const msg = new Message({ room: currentRoom, user: currentUser, text: text });
 await msg.save();
 io.to(currentRoom).emit('chat_message', msg);
-} catch (e) { console.log("Ошибка сохранения сообщения"); }
+} catch (e) { console.log("Ошибка отправки"); }
 });
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => console.log("Сервер работает на порту: " + PORT));
+http.listen(PORT, () => console.log("Сервер запущен на порту: " + PORT));
