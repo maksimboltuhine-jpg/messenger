@@ -3,107 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cloud Messenger</title>
+<title>Ultimate Pro Messenger</title>
 <style>
-body { margin: 0; font-family: sans-serif; background: #0a0a0a; color: #fff; display: flex; height: 100vh; overflow: hidden; }
-#login-screen { position: fixed; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
-#login-screen input, #login-screen select, #login-screen button { margin: 10px; padding: 15px; width: 280px; border-radius: 10px; border: 1px solid #333; background: #1a1a1a; color: #fff; outline: none; }
-#login-screen button { background: #ff0000; border: none; font-weight: bold; cursor: pointer; }
+body { margin: 0; background: #0b0b0b; color: #fff; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
 
-#chat-screen { display: none; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; background: #111; }
+/* Экран входа */
+#auth { position: fixed; inset: 0; background: #0b0b0b; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+#auth input, #auth select, #auth button { width: 300px; padding: 15px; margin: 10px; border-radius: 12px; border: 1px solid #333; background: #1a1a1a; color: #fff; outline: none; }
+#auth button { background: #6200ea; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+#auth button:hover { background: #7c4dff; }
+
+/* Основной интерфейс */
+#chat-container { display: none; flex-direction: column; height: 100%; max-width: 900px; margin: 0 auto; width: 100%; background: #111; border-left: 1px solid #222; border-right: 1px solid #222; }
+#header { padding: 15px; background: #1a1a1a; text-align: center; font-weight: bold; border-bottom: 1px solid #222; color: #6200ea; }
 #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
 
-.msg { background: #222; padding: 12px; border-radius: 15px; max-width: 75%; align-self: flex-start; position: relative; }
-.msg.my-msg { background: #333; align-self: flex-end; border: 1px solid #444; }
-.msg-author { font-size: 11px; color: #ff0000; margin-bottom: 5px; font-weight: bold; }
+/* Сообщения */
+.msg-obj { padding: 12px 16px; border-radius: 18px; max-width: 75%; background: #222; align-self: flex-start; position: relative; }
+.msg-obj.is-me { align-self: flex-end; background: #6200ea; }
+.u-name { font-size: 11px; color: #aaa; margin-bottom: 4px; font-weight: bold; }
+.is-me .u-name { color: #b388ff; }
 
-.msg img, .msg video { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
-.msg audio { width: 100%; margin-top: 8px; }
+/* Медиа */
+img, video { max-width: 100%; border-radius: 10px; margin: 8px 0; display: block; border: 1px solid #333; }
+audio { width: 100%; margin-top: 8px; }
 
-.download-btn {
-display: inline-block; margin-top: 10px; padding: 8px 15px; background: #ff0000;
-color: #fff; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: bold;
-}
+/* Кнопка скачивания */
+.dl-link { display: inline-block; margin-top: 10px; padding: 8px 14px; background: rgba(255,255,255,0.05); color: #00e676; text-decoration: none; border-radius: 8px; font-size: 12px; border: 1px solid #00e676; font-weight: bold; transition: 0.2s; }
+.dl-link:hover { background: #00e676; color: #000; }
 
-#input-area { display: flex; padding: 20px; background: #1a1a1a; gap: 10px; align-items: center; }
-#msg-input { flex: 1; padding: 15px; background: #222; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
-.icon-btn { cursor: pointer; font-size: 24px; background: none; border: none; color: #fff; transition: 0.2s; }
-.icon-btn:hover { transform: scale(1.1); color: #ff0000; }
-#file-input { display: none; }
+/* Панель ввода */
+#input-area { display: flex; padding: 20px; background: #181818; gap: 15px; align-items: center; border-top: 1px solid #222; }
+#msg-text { flex: 1; padding: 15px; background: #252525; border: 1px solid #333; color: #fff; border-radius: 12px; outline: none; }
+.act-btn { font-size: 26px; cursor: pointer; background: none; border: none; color: #fff; transition: 0.2s; }
+.act-btn:hover { color: #6200ea; transform: scale(1.1); }
+#file-select { display: none; }
 </style>
 </head>
 <body>
 
-<div id="login-screen">
-<h1 style="color: #ff0000;">Messenger</h1>
-<input type="text" id="username" placeholder="Никнейм">
-<select id="room">
-<option value="MAIN">Главная</option>
-<option value="FILES">Файлообменник</option>
+<div id="auth">
+<h2 style="color: #6200ea">PRO MESSENGER</h2>
+<input type="text" id="user-nick" placeholder="Никнейм">
+<select id="user-room">
+<option value="Общий">🌍 Общий чат</option>
+<option value="Игры">🎮 Игры</option>
+<option value="Проекты">💻 Проекты</option>
 </select>
-<button onclick="join()">ВОЙТИ</button>
+<button onclick="login()">ВОЙТИ</button>
 </div>
 
-<div id="chat-screen">
+<div id="chat-container">
+<div id="header">Комната: <span id="cur-room">...</span></div>
 <div id="messages"></div>
 <div id="input-area">
-<label for="file-input" class="icon-btn" id="label-file">📎</label>
-<input type="file" id="file-input">
-<input type="text" id="msg-input" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
-<button class="icon-btn" onclick="send()">➤</button>
+<label for="file-select" class="act-btn" id="clip-icon">📎</label>
+<input type="file" id="file-select">
+<input type="text" id="msg-text" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')sendMsg()">
+<button class="act-btn" onclick="sendMsg()" style="color: #6200ea">➤</button>
 </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
-let user = '', room = '';
+let myName = '', myRoom = '';
 
-function join() {
-user = document.getElementById('username').value.trim();
-room = document.getElementById('room').value;
-if(!user) return;
-document.getElementById('login-screen').style.display = 'none';
-document.getElementById('chat-screen').style.display = 'flex';
-socket.emit('joinRoom', { username: user, room: room });
+function login() {
+myName = document.getElementById('user-nick').value.trim();
+myRoom = document.getElementById('user-room').value;
+if(!myName) return alert('Ник заполни!');
+
+document.getElementById('auth').style.display = 'none';
+document.getElementById('chat-container').style.display = 'flex';
+document.getElementById('cur-room').innerText = myRoom;
+
+socket.emit('join', { user: myName, room: myRoom });
 }
 
-socket.on('history', (list) => list.forEach(m => render(m)));
-socket.on('message', (m) => render(m));
+socket.on('history', (data) => data.forEach(m => draw(m)));
+socket.on('renderMsg', (m) => draw(m));
 
-async function send() {
-const txt = document.getElementById('msg-input');
-const fInp = document.getElementById('file-input');
+async function sendMsg() {
+const txt = document.getElementById('msg-text');
+const fInp = document.getElementById('file-select');
 if(!txt.value && !fInp.files[0]) return;
 
 let fUrl = null, fType = null;
 if(fInp.files[0]) {
+document.getElementById('clip-icon').innerText = '⏳';
 const fd = new FormData();
 fd.append('file', fInp.files[0]);
-document.getElementById('label-file').innerText = '⏳';
+try {
 const res = await fetch('/upload', { method: 'POST', body: fd });
 const data = await res.json();
 fUrl = data.fileUrl; fType = data.fileType;
-fInp.value = ''; document.getElementById('label-file').innerText = '📎';
+} catch(e) { alert('Ошибка загрузки'); }
+fInp.value = ''; document.getElementById('clip-icon').innerText = '📎';
 }
 
-socket.emit('chatMessage', { username: user, room, text: txt.value, fileUrl: fUrl, fileType: fType });
+socket.emit('message', { user: myName, room: myRoom, text: txt.value, fileUrl: fUrl, fileType: fType });
 txt.value = '';
 }
 
-function render(m) {
+function draw(m) {
 const box = document.getElementById('messages');
 const d = document.createElement('div');
-d.className = `msg ${m.username === user ? 'my-msg' : ''}`;
+d.className = `msg-obj ${m.user === myName ? 'is-me' : ''}`;
 
-let content = `<div class="msg-author">${m.username}</div>`;
+let content = `<div class="u-name">${m.user}</div>`;
 if(m.text) content += `<div>${m.text}</div>`;
 
 if(m.fileUrl) {
 if(m.fileType.includes('image')) content += `<img src="${m.fileUrl}">`;
 else if(m.fileType.includes('video')) content += `<video src="${m.fileUrl}" controls></video>`;
 else if(m.fileType.includes('audio')) content += `<audio src="${m.fileUrl}" controls></audio>`;
-content += `<a href="${m.fileUrl}" download class="download-btn">⬇ СКАЧАТЬ</a>`;
+else content += `<div style="margin: 10px 0; color: #aaa;">📎 Файл</div>`;
+
+content += `<a href="${m.fileUrl}" download class="dl-link">⬇ СКАЧАТЬ</a>`;
 }
 
 d.innerHTML = content;
