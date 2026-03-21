@@ -3,127 +3,145 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v5.0</title>
+<title>Messenger v6.0</title>
 <style>
 * { box-sizing: border-box; }
-body { margin: 0; background: #050505; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
+body { margin: 0; background: #050505; color: #eee; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
 
-/* Версия */
-.version-tag { position: fixed; top: 10px; right: 10px; font-size: 12px; color: #444; z-index: 1001; }
+.v-tag { position: fixed; top: 10px; right: 10px; background: #222; padding: 5px 10px; border-radius: 5px; font-size: 10px; color: #ff0044; border: 1px solid #ff0044; z-index: 1000; }
 
-#auth { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
-.card { background: #111; padding: 30px; border: 1px solid #222; border-radius: 20px; width: 300px; display: flex; flex-direction: column; gap: 15px; }
+#auth-screen { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
+.login-box { background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; width: 300px; display: flex; flex-direction: column; gap: 15px; }
 
-input, select, button { padding: 15px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
-button { background: #6200ea; border: none; font-weight: bold; cursor: pointer; }
+input, select, button { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #fff; outline: none; }
+button { background: #ff0044; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+button:hover { background: #ff4477; }
 
-#chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; }
-#flow { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+#chat-window { display: none; flex-direction: column; height: 100%; max-width: 900px; margin: 0 auto; width: 100%; background: #0a0a0a; }
+#msg-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 
-.bubble { padding: 12px 16px; border-radius: 15px; background: #1a1a1a; max-width: 80%; align-self: flex-start; }
-.bubble.me { align-self: flex-end; background: #6200ea; }
-.author { font-size: 10px; opacity: 0.5; margin-bottom: 4px; }
+.msg { padding: 12px; border-radius: 12px; background: #1a1a1a; max-width: 80%; align-self: flex-start; word-wrap: break-word; }
+.msg.me { align-self: flex-end; background: #ff0044; }
+.meta { font-size: 10px; opacity: 0.6; margin-bottom: 5px; font-weight: bold; }
 
-img, video { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
-.dl-btn { display: inline-block; margin-top: 8px; padding: 6px 12px; border: 1px solid #00e676; color: #00e676; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: bold; }
+img, video { max-width: 100%; border-radius: 8px; margin-top: 10px; display: block; }
+.download { display: inline-block; margin-top: 10px; padding: 8px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 5px; font-size: 12px; }
 
-.bar { display: flex; padding: 20px; background: #111; gap: 10px; border-top: 1px solid #222; }
-#txt { flex: 1; }
-.btn-icon { font-size: 24px; cursor: pointer; color: #6200ea; }
-#f-inp { display: none; }
+.input-row { display: flex; padding: 20px; background: #111; gap: 10px; align-items: center; border-top: 1px solid #222; }
+#text-input { flex: 1; background: #222; }
+.btn { font-size: 24px; cursor: pointer; color: #ff0044; user-select: none; }
+#file-input { display: none; }
 </style>
 </head>
 <body>
 
-<div class="version-tag">v5.0</div>
+<div class="v-tag">v6.0</div>
 
-<div id="auth">
-<div class="card">
-<h2 style="text-align:center; color:#6200ea;">ВХОД v5.0</h2>
-<input type="text" id="nick" placeholder="Никнейм">
-<select id="room">
-<option value="Main">Общий чат</option>
-<option value="Dev">Разработка</option>
+<div id="auth-screen">
+<div class="login-box">
+<h2 style="text-align:center; margin:0; color:#ff0044;">MESSENGER</h2>
+<input type="text" id="username" placeholder="Никнейм">
+<select id="room-select">
+<option value="Global">🌍 Общий</option>
+<option value="Private">🔒 Приват</option>
 </select>
-<button onclick="start()">ВОЙТИ</button>
+<button onclick="init()">ВОЙТИ</button>
 </div>
 </div>
 
-<div id="chat">
-<div id="flow"></div>
-<div class="bar">
-<label for="f-inp" class="btn-icon" id="clip">📎</label>
-<input type="file" id="f-inp">
-<input type="text" id="txt" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
-<div class="btn-icon" onclick="send()">➤</div>
+<div id="chat-window">
+<div id="msg-area"></div>
+<div class="input-row">
+<label for="file-input" class="btn" id="clip-btn">📎</label>
+<input type="file" id="file-input">
+<input type="text" id="text-input" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')sendMessage()">
+<div class="btn" onclick="sendMessage()">➤</div>
 </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// Принудительный выбор транспорта для стабильности на Render
 const socket = io({ transports: ['websocket', 'polling'] });
-let myUser = '', myRoom = '';
+let user = '', room = '';
 
-function start() {
-myUser = document.getElementById('nick').value.trim();
-myRoom = document.getElementById('room').value;
-if(!myUser) return alert('Ник!');
-document.getElementById('auth').style.display = 'none';
-document.getElementById('chat').style.display = 'flex';
-socket.emit('join', { user: myUser, room: myRoom });
+function init() {
+user = document.getElementById('username').value.trim();
+room = document.getElementById('room-select').value;
+if(!user) return alert('Ник введи!');
+document.getElementById('auth-screen').style.display = 'none';
+document.getElementById('chat-window').style.display = 'flex';
+socket.emit('join', { user, room });
 }
 
-socket.on('history', (list) => {
-document.getElementById('flow').innerHTML = '';
-list.forEach(add);
+socket.on('history', (data) => {
+document.getElementById('msg-area').innerHTML = '';
+data.forEach(display);
 });
 
-socket.on('renderMsg', (m) => add(m));
+socket.on('renderMsg', (data) => display(data));
 
-async function send() {
-const t = document.getElementById('txt');
-const f = document.getElementById('f-inp');
-const c = document.getElementById('clip');
+async function sendMessage() {
+const textEl = document.getElementById('text-input');
+const fileEl = document.getElementById('file-input');
+const clip = document.getElementById('clip-btn');
 
-if(!t.value.trim() && !f.files[0]) return;
+if(!textEl.value.trim() && !fileEl.files[0]) return;
 
 let fUrl = null, fType = null;
-if(f.files[0]) {
-c.innerText = '⏳';
-const fd = new FormData();
-fd.append('file', f.files[0]);
+
+// Сначала грузим файл, если он есть
+if(fileEl.files[0]) {
+clip.innerText = '⏳';
+const formData = new FormData();
+formData.append('file', fileEl.files[0]);
 try {
-const res = await fetch('/upload', { method: 'POST', body: fd });
-const data = await res.json();
-fUrl = data.fileUrl; fType = data.fileType;
-} catch(e) { console.log(e); }
-f.value = ''; c.innerText = '📎';
+const res = await fetch('/upload', { method: 'POST', body: formData });
+if(!res.ok) throw new Error('Upload fail');
+const savedFile = await res.json();
+fUrl = savedFile.fileUrl;
+fType = savedFile.fileType;
+} catch(e) {
+console.error(e);
+alert('Файл не улетел');
+}
+fileEl.value = '';
+clip.innerText = '📎';
 }
 
-socket.emit('message', { user: myUser, room: myRoom, text: t.value, fileUrl: fUrl, fileType: fType });
-t.value = '';
+// Отправляем данные через сокет
+socket.emit('message', {
+user,
+room,
+text: textEl.value,
+fileUrl: fUrl,
+fileType: fType
+});
+
+textEl.value = '';
 }
 
-function add(m) {
-const flow = document.getElementById('flow');
+function display(m) {
+if(!m) return;
+const area = document.getElementById('msg-area');
 const d = document.createElement('div');
-d.className = `bubble ${m.user === myUser ? 'me' : ''}`;
+d.className = `msg ${m.user === user ? 'me' : ''}`;
 
-let html = `<div class="author">${m.user}</div>`;
-if(m.text) html += `<div>${m.text}</div>`;
+let content = `<div class="meta">${m.user}</div>`;
+if(m.text) content += `<div>${m.text}</div>`;
 
 if(m.fileUrl) {
 const type = m.fileType || '';
-if(type.includes('image')) html += `<img src="${m.fileUrl}">`;
-else if(type.includes('video')) html += `<video src="${m.fileUrl}" controls></video>`;
-else if(type.includes('audio')) html += `<audio src="${m.fileUrl}" controls></audio>`;
-html += `<a href="${m.fileUrl}" download class="dl-btn">⬇ СКАЧАТЬ</a>`;
+if(type.includes('image')) content += `<img src="${m.fileUrl}">`;
+else if(type.includes('video')) content += `<video src="${m.fileUrl}" controls></video>`;
+else if(type.includes('audio')) content += `<audio src="${m.fileUrl}" controls></audio>`;
+else content += `<div style="margin:10px 0;">📁 Файл</div>`;
+
+content += `<a href="${m.fileUrl}" download class="download">⬇ СКАЧАТЬ</a>`;
 }
 
-d.innerHTML = html;
-flow.appendChild(d);
-flow.scrollTop = flow.scrollHeight;
+d.innerHTML = content;
+area.appendChild(d);
+area.scrollTop = area.scrollHeight;
 }
 </script>
 </body>
