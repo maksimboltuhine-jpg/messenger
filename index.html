@@ -3,102 +3,113 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger 2.0</title>
-<script src="/socket.io/socket.io.js"></script>
+<title>Cloud Messenger</title>
 <style>
-body { margin: 0; background: #121212; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-.hidden { display: none !important; }
-.box { background: #1e1e1e; padding: 30px; border-radius: 20px; width: 320px; text-align: center; border: 1px solid #333; }
-input { padding: 12px; border-radius: 10px; border: 1px solid #444; background: #262626; color: white; outline: none; margin-bottom: 10px; width: 80%; }
-button { padding: 12px 20px; border: none; border-radius: 10px; background: #00f2ff; color: black; font-weight: bold; cursor: pointer; transition: 0.3s; }
-button:hover { background: #00c8d4; }
+body { margin: 0; font-family: sans-serif; background: #0a0a0a; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+#login-screen { position: fixed; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
+#login-screen input, #login-screen select, #login-screen button { margin: 10px; padding: 15px; width: 280px; border-radius: 10px; border: 1px solid #333; background: #1a1a1a; color: #fff; outline: none; }
+#login-screen button { background: #ff0000; border: none; font-weight: bold; cursor: pointer; }
 
-#chat-screen { width: 100%; max-width: 900px; height: 95vh; background: #1e1e1e; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #333; }
-.top-bar { background: #252525; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+#chat-screen { display: none; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; background: #111; }
+#messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
 
-#messages { flex-grow: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 12px; }
-.msg { background: #2b2b2b; padding: 12px 18px; border-radius: 15px; width: fit-content; max-width: 75%; border: 1px solid #3a3a3a; }
-.msg b { color: #00f2ff; display: block; font-size: 0.9em; margin-bottom: 4px; }
-.time { font-size: 0.75em; color: #777; margin-left: 8px; }
+.msg { background: #222; padding: 12px; border-radius: 15px; max-width: 75%; align-self: flex-start; position: relative; }
+.msg.my-msg { background: #333; align-self: flex-end; border: 1px solid #444; }
+.msg-author { font-size: 11px; color: #ff0000; margin-bottom: 5px; font-weight: bold; }
 
-.input-area { padding: 20px; background: #252525; display: flex; gap: 12px; }
+.msg img, .msg video { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+.msg audio { width: 100%; margin-top: 8px; }
+
+.download-btn {
+display: inline-block; margin-top: 10px; padding: 8px 15px; background: #ff0000;
+color: #fff; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: bold;
+}
+
+#input-area { display: flex; padding: 20px; background: #1a1a1a; gap: 10px; align-items: center; }
+#msg-input { flex: 1; padding: 15px; background: #222; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
+.icon-btn { cursor: pointer; font-size: 24px; background: none; border: none; color: #fff; transition: 0.2s; }
+.icon-btn:hover { transform: scale(1.1); color: #ff0000; }
+#file-input { display: none; }
 </style>
 </head>
 <body>
 
-<div id="auth-screen">
-<div class="box">
-<h2 style="color:#00f2ff">Вход в чат</h2>
-<input type="text" id="username" placeholder="Твой никнейм">
-<button onclick="login()">ЗАЙТИ</button>
-</div>
-</div>
-
-<div id="chat-screen" class="hidden">
-<div class="top-bar">
-<span id="room-title" style="font-weight:bold; color:#00f2ff">Группа: Общий</span>
-<div style="display:flex; gap:8px">
-<input type="text" id="room-input" placeholder="Название группы" style="margin:0; width:140px; padding:6px">
-<button onclick="changeRoom()" style="padding:6px 12px; font-size:0.8em">ПЕРЕЙТИ</button>
-</div>
+<div id="login-screen">
+<h1 style="color: #ff0000;">Messenger</h1>
+<input type="text" id="username" placeholder="Никнейм">
+<select id="room">
+<option value="MAIN">Главная</option>
+<option value="FILES">Файлообменник</option>
+</select>
+<button onclick="join()">ВОЙТИ</button>
 </div>
 
+<div id="chat-screen">
 <div id="messages"></div>
-
-<div class="input-area">
-<input type="text" id="msg-input" style="flex-grow: 1; margin:0" placeholder="Напиши что-нибудь...">
-<button onclick="send()">ОТПРАВИТЬ</button>
+<div id="input-area">
+<label for="file-input" class="icon-btn" id="label-file">📎</label>
+<input type="file" id="file-input">
+<input type="text" id="msg-input" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
+<button class="icon-btn" onclick="send()">➤</button>
 </div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
+let user = '', room = '';
 
-function login() {
-const u = document.getElementById('username').value;
-if(u) socket.emit('set_user', u);
+function join() {
+user = document.getElementById('username').value.trim();
+room = document.getElementById('room').value;
+if(!user) return;
+document.getElementById('login-screen').style.display = 'none';
+document.getElementById('chat-screen').style.display = 'flex';
+socket.emit('joinRoom', { username: user, room: room });
 }
 
-socket.on('login_success', () => {
-document.getElementById('auth-screen').classList.add('hidden');
-document.getElementById('chat-screen').classList.remove('hidden');
-socket.emit('join_room', 'Общий');
-});
+socket.on('history', (list) => list.forEach(m => render(m)));
+socket.on('message', (m) => render(m));
 
-function changeRoom() {
-const r = document.getElementById('room-input').value;
-if(r) {
-socket.emit('join_room', r);
-document.getElementById('room-input').value = '';
-}
-}
+async function send() {
+const txt = document.getElementById('msg-input');
+const fInp = document.getElementById('file-input');
+if(!txt.value && !fInp.files[0]) return;
 
-socket.on('room_changed', (name) => {
-document.getElementById('room-title').innerText = 'Группа: ' + name;
-});
-
-function send() {
-const i = document.getElementById('msg-input');
-if(i.value) { socket.emit('chat_message', i.value); i.value = ''; }
+let fUrl = null, fType = null;
+if(fInp.files[0]) {
+const fd = new FormData();
+fd.append('file', fInp.files[0]);
+document.getElementById('label-file').innerText = '⏳';
+const res = await fetch('/upload', { method: 'POST', body: fd });
+const data = await res.json();
+fUrl = data.fileUrl; fType = data.fileType;
+fInp.value = ''; document.getElementById('label-file').innerText = '📎';
 }
 
-socket.on('history', (list) => {
-const m = document.getElementById('messages');
-m.innerHTML = '';
-list.forEach(msg => addMsg(msg));
-});
-
-socket.on('chat_message', (msg) => addMsg(msg));
-
-function addMsg(data) {const d = document.createElement('div');
-d.className = 'msg';
-d.innerHTML = `<b>${data.user}</b> ${data.text} <span class="time">${data.time}</span>`;
-const b = document.getElementById('messages');
-b.appendChild(d);
-b.scrollTop = b.scrollHeight;
+socket.emit('chatMessage', { username: user, room, text: txt.value, fileUrl: fUrl, fileType: fType });
+txt.value = '';
 }
 
-document.getElementById('msg-input').onkeypress = (e) => { if(e.key === 'Enter') send(); };
+function render(m) {
+const box = document.getElementById('messages');
+const d = document.createElement('div');
+d.className = `msg ${m.username === user ? 'my-msg' : ''}`;
+
+let content = `<div class="msg-author">${m.username}</div>`;
+if(m.text) content += `<div>${m.text}</div>`;
+
+if(m.fileUrl) {
+if(m.fileType.includes('image')) content += `<img src="${m.fileUrl}">`;
+else if(m.fileType.includes('video')) content += `<video src="${m.fileUrl}" controls></video>`;
+else if(m.fileType.includes('audio')) content += `<audio src="${m.fileUrl}" controls></audio>`;
+content += `<a href="${m.fileUrl}" download class="download-btn">⬇ СКАЧАТЬ</a>`;
+}
+
+d.innerHTML = content;
+box.appendChild(d);
+box.scrollTop = box.scrollHeight;
+}
 </script>
 </body>
 </html>

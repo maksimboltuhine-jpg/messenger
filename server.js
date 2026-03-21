@@ -1,61 +1,60 @@
 const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const http = require('http');
+const { Server } = require('socket.io');
+const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-// Память сервера для сообщений
-const roomsData = {
-'Общий': []
-};
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+// Настройка папки для файлов
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 app.use(express.static(__dirname));
+app.use('/uploads', express.static(uploadDir));
+
+// Конфиг загрузки файлов
+const storage = multer.diskStorage({
+destination: (req, file, cb) => cb(null, uploadDir),
+filename: (req, file, cb) => {
+const safeName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+cb(null, Date.now() + '-' + safeName);
+}
+});
+const upload = multer({ storage });
+
+app.post('/upload', upload.single('file'), (req, res) => {
+if (!req.file) return res.status(400).send('Файл не выбран');
+res.json({ fileUrl: `/uploads/${req.file.filename}`, fileType: req.file.mimetype });
+});
+
+// ПОДКЛЮЧЕНИЕ К БАЗЕ (Вставь свою ссылку!)
+const MONGO_URI = 'mongodb+srv://твой_логин:твой_пароль@cluster0.mongodb.net/messenger?retryWrites=true&w=majority';
+mongoose.connect(MONGO_URI).then(() => console.log('MongoDB OK')).catch(err => console.log('MongoDB Error:', err));
+
+const messageSchema = new mongoose.Schema({
+username: String, text: String, room: String,
+fileUrl: String, fileType: String, time: { type: Date, default: Date.now }
+});
+const Message = mongoose.model('Message', messageSchema);
 
 io.on('connection', (socket) => {
-let currentUser = 'Аноним';
-let currentRoom = 'Общий';
-
-console.log('Кто-то зашел в сеть');
-
-// Вход
-socket.on('set_user', (username) => {
-currentUser = username || 'Аноним';
-socket.emit('login_success', currentUser);
-console.log(`Пользователь ${currentUser} готов к общению`);
+socket.on('joinRoom', async ({ username, room }) => {
+socket.join(room);
+const history = await Message.find({ room }).sort({ time: 1 }).limit(50);
+socket.emit('history', history);
 });
 
-// Переход в группу
-socket.on('join_room', (roomName) => {
-socket.leave(currentRoom);
-currentRoom = roomName || 'Общий';
-socket.join(currentRoom);
-
-if (!roomsData[currentRoom]) {
-roomsData[currentRoom] = [];
-}
-
-socket.emit('history', roomsData[currentRoom]);
-socket.emit('room_changed', currentRoom);
-});
-
-// Сообщение
-socket.on('chat_message', (text) => {
-if (!text) return;
-
-const msg = {
-user: currentUser,
-text: text,
-time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-};
-
-roomsData[currentRoom].push(msg);
-// Храним только последние 50 сообщений в каждой группе
-if (roomsData[currentRoom].length > 50) roomsData[currentRoom].shift();
-
-io.to(currentRoom).emit('chat_message', msg);
+socket.on('chatMessage', async (data) => {
+const msg = new Message(data);
+await msg.save();
+io.to(data.room).emit('message', msg);
 });
 });
 
 const PORT = process.env.PORT || 10000;
-http.listen(PORT, () => {
-console.log(`--- ЧАТ ЗАПУЩЕН НА ПОРТУ ${PORT} ---`);
-});
+server.listen(PORT, () => console.log(`Server on port ${PORT}`));
