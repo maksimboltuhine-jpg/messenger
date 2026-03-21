@@ -10,34 +10,35 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// Папка для загрузок
+// Папка для хранения файлов
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 app.use(express.static(__dirname));
 app.use('/uploads', express.static(uploadDir));
 
-// Настройка Multer
+// Настройка Multer для приема файлов
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
 filename: (req, file, cb) => {
-const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-cb(null, uniqueName);
+const safeName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+cb(null, safeName);
 }
 });
-const upload = multer({ storage });
+const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // Лимит 100МБ
 
-// Роут для загрузки файлов
+// Эндпоинт загрузки
 app.post('/upload', upload.single('file'), (req, res) => {
-if (!req.file) return res.status(400).json({ error: 'Файл не выбран' });
+if (!req.file) return res.status(400).json({ error: 'Файл не найден' });
 res.json({ fileUrl: `/uploads/${req.file.filename}`, fileType: req.file.mimetype });
 });
 
-// МОНГО (ВСТАВЬ СВОЮ ССЫЛКУ)
-const MONGO_URI = 'mongodb+srv://твой_логин:твой_пароль@cluster0.mongodb.net/messenger?retryWrites=true&w=majority';
+// БАЗА ДАННЫХ (Укажи свои данные здесь!)
+const MONGO_URI = 'mongodb+srv://admin:pass123@cluster0.mongodb.net/messenger?retryWrites=true&w=majority';
+
 mongoose.connect(MONGO_URI)
-.then(() => console.log('✅ MongoDB подключена'))
-.catch(err => console.error('❌ Ошибка БД:', err));
+.then(() => console.log('✅ MongoDB Connected'))
+.catch(err => console.error('❌ MongoDB Error:', err));
 
 const msgSchema = new mongoose.Schema({
 user: String, text: String, room: String,
@@ -45,7 +46,7 @@ fileUrl: String, fileType: String, date: { type: Date, default: Date.now }
 });
 const Msg = mongoose.model('Msg', msgSchema);
 
-// СОКЕТЫ И КОМНАТЫ
+// ЛОГИКА ЧАТА
 io.on('connection', (socket) => {
 socket.on('join', async ({ user, room }) => {
 socket.join(room);
@@ -58,11 +59,12 @@ socket.emit('history', history);
 socket.on('message', async (data) => {
 try {
 const newMsg = new Msg(data);
-await newMsg.save();
-io.to(data.room).emit('renderMsg', newMsg);
+const savedMsg = await newMsg.save();
+// Рассылаем ВСЕМ в комнате, чтобы сообщение сразу появилось
+io.to(data.room).emit('renderMsg', savedMsg);
 } catch (e) { console.log(e); }
 });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`🚀 Сервер на порту ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
