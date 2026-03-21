@@ -10,7 +10,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
 cors: { origin: "*" },
-transports: ['websocket', 'polling']
+transports: ['websocket', 'polling'],
+pingTimeout: 60000
 });
 
 const uploadDir = path.join(__dirname, 'uploads');
@@ -22,6 +23,7 @@ app.use('/uploads', express.static(uploadDir));
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
 filename: (req, file, cb) => {
+// Убираем пробелы, чтобы ссылки не бились
 cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'));
 }
 });
@@ -29,11 +31,10 @@ const upload = multer({ storage });
 
 app.post('/upload', upload.single('file'), (req, res) => {
 if (!req.file) return res.status(400).json({ error: 'No file' });
-const fileUrl = `/uploads/${req.file.filename}`;
-res.json({ fileUrl, fileType: req.file.mimetype });
+res.json({ fileUrl: `/uploads/${req.file.filename}`, fileType: req.file.mimetype });
 });
 
-// МОНГО (Вставь свою ссылку!)
+// МОНГО (ВСТАВЬ СВОЮ ССЫЛКУ!)
 const MONGO_URI = 'mongodb+srv://admin:pass123@cluster0.mongodb.net/chatDB?retryWrites=true&w=majority';
 mongoose.connect(MONGO_URI).catch(e => console.log('DB ERROR:', e));
 
@@ -53,11 +54,13 @@ socket.emit('history', history);
 });
 
 socket.on('message', (data) => {
+// Мгновенная рассылка всем в комнате
 io.to(data.room).emit('renderMsg', data);
+// Сохранение в базу на фоне (не тормозит чат)
 const m = new Msg(data);
-m.save().catch(e => console.log('BG Save Err:', e));
+m.save().catch(e => console.log('Save Err:', e));
 });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`v7.1 ON ${PORT}`));
+server.listen(PORT, () => console.log(`v7.2 Turbo ON ${PORT}`));

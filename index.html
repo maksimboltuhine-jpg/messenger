@@ -3,53 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v7.1</title>
+<title>Messenger v7.2 Turbo</title>
 <style>
 * { box-sizing: border-box; }
-body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
-.v { position: fixed; top: 10px; right: 10px; color: #ff0044; font-size: 12px; border: 1px solid #ff0044; padding: 4px; border-radius: 4px; z-index: 1000; }
+body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+.v { position: fixed; top: 10px; right: 10px; color: #00ff88; font-size: 12px; border: 1px solid #00ff88; padding: 4px; border-radius: 4px; z-index: 1000; background: rgba(0,0,0,0.8); }
 
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
-.box { background: #111; padding: 30px; border-radius: 15px; width: 300px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; }
+.box { background: #111; padding: 30px; border-radius: 15px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; }
 
-input, select, button { padding: 12px; border-radius: 8px; border: 1px solid #444; background: #222; color: #fff; outline: none; }
-button { background: #ff0044; border: none; font-weight: bold; cursor: pointer; }
+input, select, button { padding: 14px; border-radius: 10px; border: 1px solid #444; background: #1a1a1a; color: #fff; outline: none; font-size: 16px; }
+button { background: #6200ea; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+button:hover { background: #7c4dff; }
 
-#chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; }
-#msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+#chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; border-left: 1px solid #222; border-right: 1px solid #222; }
+#msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
 
-.m { padding: 12px; border-radius: 12px; background: #1a1a1a; max-width: 85%; align-self: flex-start; }
-.m.me { align-self: flex-end; background: #ff0044; }
-.u { font-size: 10px; opacity: 0.5; margin-bottom: 4px; }
+.m { padding: 12px 16px; border-radius: 15px; background: #1a1a1a; max-width: 85%; align-self: flex-start; position: relative; }
+.m.me { align-self: flex-end; background: #6200ea; }
+.u { font-size: 10px; opacity: 0.5; margin-bottom: 5px; font-weight: bold; }
 
-img, video { max-width: 100%; border-radius: 8px; margin-top: 10px; display: block; border: 1px solid #333; }
-.dl { display: inline-block; margin-top: 10px; padding: 8px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 5px; font-size: 11px; }
+img, video { max-width: 100%; border-radius: 10px; margin-top: 10px; display: block; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
+.dl { display: inline-block; margin-top: 10px; padding: 8px 12px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 6px; font-size: 11px; font-weight: bold; }
 
-/* Панель ввода и превью */
-.bar-container { background: #111; border-top: 1px solid #222; padding: 10px; }
-#file-preview { font-size: 12px; color: #00ff88; padding: 5px 10px; display: none; }
-#progress-container { width: 100%; height: 4px; background: #222; display: none; margin-bottom: 10px; }
-#progress-bar { height: 100%; width: 0%; background: #ff0044; transition: width 0.2s; }
+/* Ввод и Прогресс */
+.bar-container { background: #111; border-top: 1px solid #222; padding: 15px; }
+#file-preview { font-size: 12px; color: #00ff88; padding: 0 5px 10px 5px; display: none; font-weight: bold; }
+#progress-container { width: 100%; height: 4px; background: #222; display: none; margin-bottom: 15px; border-radius: 2px; overflow: hidden; }
+#progress-bar { height: 100%; width: 0%; background: #00ff88; transition: width 0.1s linear; }
 
-.bar { display: flex; gap: 10px; align-items: center; }
-#in { flex: 1; }
-.btn { font-size: 24px; cursor: pointer; color: #ff0044; }
+.bar { display: flex; gap: 12px; align-items: center; }
+#in { flex: 1; background: #222; }
+.btn { font-size: 26px; cursor: pointer; color: #6200ea; user-select: none; transition: 0.2s; }
+.btn:hover { transform: scale(1.1); }
 #f { display: none; }
 </style>
 </head>
 <body>
 
-<div class="v">v7.1</div>
+<div class="v">v7.2 Turbo</div>
 
 <div id="auth">
 <div class="box">
-<h2 style="text-align:center; color:#ff0044;">LOG IN v7.1</h2>
-<input type="text" id="nick" placeholder="Ник">
+<h2 style="text-align:center; color:#6200ea; margin-top:0;">MESSENGER</h2>
+<input type="text" id="nick" placeholder="Твой ник">
 <select id="room">
-<option value="Main">Общий</option>
-<option value="Dev">Разработка</option>
+<option value="Global">🌍 Общий чат</option>
+<option value="Dev">💻 Разработка</option>
+<option value="Games">🎮 Игры</option>
 </select>
-<button onclick="go()">ВОЙТИ</button>
+<button onclick="go()">ВОЙТИ В СЕТЬ</button>
 </div>
 </div>
 
@@ -61,7 +64,7 @@ img, video { max-width: 100%; border-radius: 8px; margin-top: 10px; display: blo
 <div class="bar">
 <label for="f" class="btn">📎</label>
 <input type="file" id="f" onchange="previewFile()">
-<input type="text" id="in" placeholder="Текст..." onkeypress="if(event.key==='Enter')send()">
+<input type="text" id="in" placeholder="Написать сообщение..." onkeypress="if(event.key==='Enter')send()">
 <div class="btn" onclick="send()">➤</div>
 </div>
 </div>
@@ -75,22 +78,44 @@ let user = '', room = '';
 function go() {
 user = document.getElementById('nick').value.trim();
 room = document.getElementById('room').value;
-if(!user) return;
+if(!user) return alert('Введите ник!');
 document.getElementById('auth').style.display = 'none';
 document.getElementById('chat').style.display = 'flex';
 socket.emit('join', { user, room });
 }
 
-// Показ выбранного файла
 function previewFile() {
 const f = document.getElementById('f');
 const p = document.getElementById('file-preview');
 if(f.files[0]) {
-p.innerText = "📄 Выбран файл: " + f.files[0].name;
+p.innerText = "📄 Готов: " + f.files[0].name + " (" + (f.files[0].size/1024).toFixed(1) + " KB)";
 p.style.display = 'block';
-} else {
-p.style.display = 'none';
+} else { p.style.display = 'none'; }
 }
+
+// Сжатие ТОЛЬКО для картинок
+async function compressImage(file) {
+if (!file.type.startsWith('image/')) return file;
+return new Promise((resolve) => {
+const reader = new FileReader();
+reader.readAsDataURL(file);
+reader.onload = (e) => {
+const img = new Image();
+img.src = e.target.result;
+img.onload = () => {
+const canvas = document.createElement('canvas');
+let w = img.width, h = img.height;
+if (w > h) { if (w > 1280) { h *= 1280 / w; w = 1280; } }
+else { if (h > 1280) { w *= 1280 / h; h = 1280; } }
+canvas.width = w; canvas.height = h;
+const ctx = canvas.getContext('2d');
+ctx.drawImage(img, 0, 0, w, h);
+canvas.toBlob((blob) => {
+resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+}, 'image/jpeg', 0.75);
+};
+};
+});
 }
 
 socket.on('history', (list) => {
@@ -102,25 +127,30 @@ socket.on('renderMsg', add);
 
 async function send() {
 const txt = document.getElementById('in');
-const file = document.getElementById('f');
+const fileInp = document.getElementById('f');
 const preview = document.getElementById('file-preview');
 const progCont = document.getElementById('progress-container');
 const progBar = document.getElementById('progress-bar');
 
-if(!txt.value.trim() && !file.files[0]) return;
+if(!txt.value.trim() && !fileInp.files[0]) return;
 
 let fUrl = null, fType = null;
 
-if(file.files[0]) {
+if(fileInp.files[0]) {
 progCont.style.display = 'block';
+let fileToSend = fileInp.files[0];
+
+if(fileToSend.type.startsWith('image/')) {
+preview.innerText = "⚡ Сжатие изображения...";
+fileToSend = await compressImage(fileToSend);
+}
+
 const fd = new FormData();
-fd.append('file', file.files[0]);
+fd.append('file', fileToSend);
 
 try {
-// Используем XMLHttpRequest для отслеживания прогресса
 const xhr = new XMLHttpRequest();
 xhr.open('POST', '/upload', true);
-
 xhr.upload.onprogress = (e) => {
 if (e.lengthComputable) {
 const percent = Math.round((e.loaded / e.total) * 100);
@@ -128,21 +158,20 @@ progBar.style.width = percent + '%';
 }
 };
 
-const uploadPromise = new Promise((resolve, reject) => {
+const data = await new Promise((resolve, reject) => {
 xhr.onload = () => resolve(JSON.parse(xhr.responseText));
 xhr.onerror = () => reject();
 xhr.send(fd);
 });
 
-const data = await uploadPromise;
 fUrl = data.fileUrl;
 fType = data.fileType;
-} catch(e) { console.error(e); }
+} catch(e) { console.error("Ошибка загрузки:", e); }
 
 progCont.style.display = 'none';
 progBar.style.width = '0%';
 preview.style.display = 'none';
-file.value = '';
+fileInp.value = '';
 }
 
 socket.emit('message', { user, room, text: txt.value, fileUrl: fUrl, fileType: fType });
@@ -153,23 +182,16 @@ function add(m) {
 const area = document.getElementById('msgs');
 const d = document.createElement('div');
 d.className = `m ${m.user === user ? 'me' : ''}`;
-
 let html = `<div class="u">${m.user}</div>`;
 if(m.text) html += `<div>${m.text}</div>`;
-
 if(m.fileUrl) {
-const isImg = m.fileType?.includes('image');
-const isVid = m.fileType?.includes('video');
-const isAud = m.fileType?.includes('audio');
-
-if(isImg) html += `<img src="${m.fileUrl}" onclick="window.open(this.src)">`;
-else if(isVid) html += `<video src="${m.fileUrl}" controls></video>`;
-else if(isAud) html += `<audio src="${m.fileUrl}" controls></audio>`;
-else html += `<div style="margin:10px 0; color:#00ff88;">📁 Документ</div>`;
-
+const t = m.fileType || '';
+if(t.includes('image')) html += `<img src="${m.fileUrl}" onclick="window.open(this.src)">`;
+else if(t.includes('video')) html += `<video src="${m.fileUrl}" controls></video>`;
+else if(t.includes('audio')) html += `<audio src="${m.fileUrl}" controls></audio>`;
+else html += `<div style="margin:10px 0; color:#00ff88; font-weight:bold;">📁 Файл (Оригинал)</div>`;
 html += `<a href="${m.fileUrl}" download class="dl">⬇ СКАЧАТЬ</a>`;
 }
-
 d.innerHTML = html;
 area.appendChild(d);
 area.scrollTop = area.scrollHeight;
