@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v9.6</title>
+<title>Messenger v9.7 Nitro</title>
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -16,7 +16,7 @@ button { background: #00ff88; color: #000; border: none; font-weight: bold; curs
 .m { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; }
 .m.me { align-self: flex-end; background: #0066ff; border: none; }
 .u { font-size: 10px; opacity: 0.6; margin-bottom: 4px; font-weight: bold; }
-.del-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; color: #ff3b3b; font-weight: bold; padding: 5px; }
+.del-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; color: #ff3b3b; padding: 5px; font-weight: bold; }
 img, video, audio { max-width: 100%; border-radius: 12px; margin-top: 10px; display: block; }
 audio { height: 40px; filter: invert(1); width: 100%; }
 .dl { display: block; margin-top: 10px; padding: 8px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 8px; text-align: center; font-size: 12px; font-weight: bold; }
@@ -32,8 +32,8 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 <body>
 <div id="auth">
 <div class="box">
-<h2 style="color:#00ff88; text-align:center;">ВХОД</h2>
-<input type="text" id="nick" placeholder="Ник">
+<h2 style="color:#00ff88; text-align:center;">MESSENGER</h2>
+<input type="text" id="nick" placeholder="Никнейм">
 <select id="room"><option value="Main">Общий чат</option></select>
 <button onclick="go()">ВОЙТИ</button>
 </div>
@@ -45,7 +45,7 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 <div id="info" style="font-size:10px; color:#00ff88; margin-bottom:5px;"></div>
 <div class="bar">
 <label for="f" class="btn-icon">📎</label>
-<input type="file" id="f" onchange="document.getElementById('info').innerText='Выбран: '+this.files[0].name">
+<input type="file" id="f" onchange="document.getElementById('info').innerText='Файл: '+this.files[0].name">
 <input type="text" id="in" placeholder="Сообщение..." autocomplete="off" onkeypress="if(event.key==='Enter')send()">
 <div class="btn-icon" onclick="send()">➤</div>
 </div>
@@ -60,7 +60,7 @@ let user = '', room = '';
 function go() {
 user = document.getElementById('nick').value.trim();
 room = document.getElementById('room').value;
-if(!user) return alert("Введите ник!");
+if(!user) return alert("Ник!");
 document.getElementById('auth').style.display = 'none';
 document.getElementById('chat').style.display = 'flex';
 socket.emit('join', { user, room });
@@ -85,12 +85,12 @@ const res = await new Promise((resolve, reject) => {
 const xhr = new XMLHttpRequest();
 xhr.open('POST', '/upload');
 xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
-xhr.onload = () => xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject(xhr.responseText);
-xhr.onerror = () => reject("Network error");
+xhr.onload = () => xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject();
+xhr.onerror = () => reject();
 xhr.send(fd);
 });
 fD = res;
-} catch(e) { alert("Ошибка загрузки файла!"); console.error(e); }
+} catch(e) { alert("Ошибка загрузки!"); }
 pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = ''; inf.innerText = '';
 }
 
