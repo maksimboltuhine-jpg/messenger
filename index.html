@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v9.7 Nitro</title>
+<title>Messenger v9.8</title>
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ВЕРНУЛ ПЛАШКУ С ВЕРСИЕЙ */
+.v { position: fixed; top: 10px; right: 10px; color: #00ff88; font-size: 12px; border: 1px solid #00ff88; padding: 4px 8px; z-index: 1000; font-weight: bold; border-radius: 5px; background: #000; }
+
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
 .box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; }
 input, select, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
@@ -30,6 +34,8 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 </style>
 </head>
 <body>
+<div class="v">v9.8 FINAL</div>
+
 <div id="auth">
 <div class="box">
 <h2 style="color:#00ff88; text-align:center;">MESSENGER</h2>
@@ -38,6 +44,7 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 <button onclick="go()">ВОЙТИ</button>
 </div>
 </div>
+
 <div id="chat">
 <div id="msgs"></div>
 <div class="bar-container">
@@ -85,12 +92,23 @@ const res = await new Promise((resolve, reject) => {
 const xhr = new XMLHttpRequest();
 xhr.open('POST', '/upload');
 xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
-xhr.onload = () => xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject();
-xhr.onerror = () => reject();
+xhr.onload = () => {
+if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+else {
+// Теперь мы вытаскиваем текст ошибки с сервера!
+try { reject(JSON.parse(xhr.responseText).error); }
+catch { reject(xhr.statusText || "Неизвестная ошибка сервера"); }
+}
+};
+xhr.onerror = () => reject("Нет соединения с сервером");
 xhr.send(fd);
 });
 fD = res;
-} catch(e) { alert("Ошибка загрузки!"); }
+} catch(e) {
+alert("Ошибка загрузки: " + e); // Вот тут покажет, в чем беда!
+pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = ''; inf.innerText = '';
+return; // Останавливаем отправку сообщения, если файл не загрузился
+}
 pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = ''; inf.innerText = '';
 }
 

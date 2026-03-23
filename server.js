@@ -9,7 +9,6 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// Лимиты на объем данных
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb', extended: true}));
 
@@ -24,22 +23,21 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 app.use(express.static(__dirname));
 
-// НОВЫЙ ФОРМАТ ССЫЛКИ (SRV) — УЖЕ С ТВОИМ ПАРОЛЕМ И БАЗОЙ
-const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
+// ВОЗВРАЩАЕМ ДЛИННУЮ ССЫЛКУ ИЗ ТВОЕГО СКРИНШОТА (Она надежнее для Render)
+const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Maksim12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/chatDB?ssl=true&replicaSet=atlas-7yliej-shard-0&authSource=admin&appName=Cluster0';
 
 let gfsBucket;
 
-// Схема с авто-удалением (Индекс создается сам)
 const msgSchema = new mongoose.Schema({
 user: String, text: String, room: String,
 fileUrl: String, fileId: String, fileType: String, fileName: String,
-createdAt: { type: Date, default: Date.now, expires: 86400 } // Удаление через 24ч
+createdAt: { type: Date, default: Date.now, expires: 86400 }
 });
 const Msg = mongoose.model('Msg', msgSchema);
 
 mongoose.connect(MONGO_URI)
 .then(() => {
-console.log('✅ СВЯЗЬ С БАЗОЙ УСТАНОВЛЕНА (SRV)');
+console.log('✅ СВЯЗЬ С БАЗОЙ УСТАНОВЛЕНА (Длинная ссылка)');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 })
 .catch(e => console.error('❌ ОШИБКА ПОДКЛЮЧЕНИЯ:', e.message));
@@ -51,9 +49,9 @@ filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.repla
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-if (!req.file || !gfsBucket) return res.status(500).json({ error: 'База не готова' });
+if (!gfsBucket) return res.status(500).json({ error: 'База данных еще не подключилась к серверу, подожди пару секунд.' });
+if (!req.file) return res.status(400).json({ error: 'Файл не дошел до сервера.' });
 
-// Фикс кодировки (чтобы не было кракозябр в именах файлов)
 let originalName = req.file.originalname;
 try { originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
 
@@ -65,7 +63,7 @@ res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType:
 })
 .on('error', (err) => {
 console.error('Ошибка записи:', err);
-res.status(500).json({ error: 'Ошибка БД' });
+res.status(500).json({ error: 'База данных отклонила запись файла.' });
 });
 });
 
@@ -104,4 +102,4 @@ io.to(room).emit('msgDeleted', id);
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`v9.7 LIVE ON ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`v9.8 LIVE ON ${PORT}`));
