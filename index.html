@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v9.5 Nitro</title>
+<title>Messenger v9.6</title>
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-.v { position: fixed; top: 10px; right: 10px; color: #00ff88; font-size: 10px; border: 1px solid #00ff88; padding: 3px 6px; z-index: 1000; }
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
 .box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; }
 input, select, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
@@ -17,7 +16,7 @@ button { background: #00ff88; color: #000; border: none; font-weight: bold; curs
 .m { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; }
 .m.me { align-self: flex-end; background: #0066ff; border: none; }
 .u { font-size: 10px; opacity: 0.6; margin-bottom: 4px; font-weight: bold; }
-.del-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; opacity: 0.7; color: #ff3b3b; font-weight: bold; padding: 5px; }
+.del-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; color: #ff3b3b; font-weight: bold; padding: 5px; }
 img, video, audio { max-width: 100%; border-radius: 12px; margin-top: 10px; display: block; }
 audio { height: 40px; filter: invert(1); width: 100%; }
 .dl { display: block; margin-top: 10px; padding: 8px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 8px; text-align: center; font-size: 12px; font-weight: bold; }
@@ -31,10 +30,10 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 </style>
 </head>
 <body>
-<div class="v">v9.5 NITRO</div>
 <div id="auth">
 <div class="box">
-<input type="text" id="nick" placeholder="Ваш ник">
+<h2 style="color:#00ff88; text-align:center;">ВХОД</h2>
+<input type="text" id="nick" placeholder="Ник">
 <select id="room"><option value="Main">Общий чат</option></select>
 <button onclick="go()">ВОЙТИ</button>
 </div>
@@ -60,8 +59,8 @@ let user = '', room = '';
 
 function go() {
 user = document.getElementById('nick').value.trim();
-room= document.getElementById('room').value;
-if(!user) return;
+room = document.getElementById('room').value;
+if(!user) return alert("Введите ник!");
 document.getElementById('auth').style.display = 'none';
 document.getElementById('chat').style.display = 'flex';
 socket.emit('join', { user, room });
@@ -69,13 +68,13 @@ socket.emit('join', { user, room });
 
 socket.on('history', list => { list.forEach(add); });
 socket.on('renderMsg', add);
-socket.on('msgDeleted', id => { if(document.getElementById(id)) document.getElementById(id).remove(); });
+socket.on('msgDeleted', id => { const el = document.getElementById(id); if(el) el.remove(); });
 
 async function send() {
 const txt = document.getElementById('in'), fInp = document.getElementById('f'),
-pc = document.getElementById('p-c'), pb = document.getElementById('p-b');
+pc = document.getElementById('p-c'), pb = document.getElementById('p-b'), inf = document.getElementById('info');
 
-if(!txt.value && !fInp.files[0]) return;
+if(!txt.value.trim() && !fInp.files[0]) return;
 let fD = null;
 
 if(fInp.files[0]) {
@@ -86,13 +85,13 @@ const res = await new Promise((resolve, reject) => {
 const xhr = new XMLHttpRequest();
 xhr.open('POST', '/upload');
 xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
-xhr.onload = () => xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject();
+xhr.onload = () => xhr.status === 200 ? resolve(JSON.parse(xhr.responseText)) : reject(xhr.responseText);
+xhr.onerror = () => reject("Network error");
 xhr.send(fd);
 });
 fD = res;
-} catch(e) { alert("Ошибка загрузки!"); }
-pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = '';
-document.getElementById('info').innerText = '';
+} catch(e) { alert("Ошибка загрузки файла!"); console.error(e); }
+pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = ''; inf.innerText = '';
 }
 
 socket.emit('message', { user, room, text: txt.value, fileUrl: fD?.fileUrl, fileId: fD?.fileId, fileType: fD?.fileType, fileName: fD?.fileName });

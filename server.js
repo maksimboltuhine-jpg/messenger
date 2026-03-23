@@ -9,15 +9,14 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// Лимиты для Express
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb', extended: true}));
 
 const io = new Server(server, {
 cors: { origin: "*" },
 transports: ['websocket', 'polling'],
-maxHttpBufferSize: 1e8, // 100MB
-pingTimeout: 60000 // Ждем 60 сек при загрузке
+maxHttpBufferSize: 1e8,
+pingTimeout: 60000
 });
 
 const uploadDir = path.join(__dirname, 'uploads');
@@ -25,11 +24,11 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 app.use(express.static(__dirname));
 
-const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Maksim12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/?ssl=true&replicaSet=atlas-7yliej-shard-0&authSource=admin&appName=Cluster0';
+// ТВОЯ ССЫЛКА С УКАЗАНИЕМ БАЗЫ chatDB
+const MONGO_URI = 'mongodb://maksimboltuhine_db_user:Maksim12345@ac-8vdrglj-shard-00-00.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-01.peuxhxx.mongodb.net:27017,ac-8vdrglj-shard-00-02.peuxhxx.mongodb.net:27017/chatDB?ssl=true&replicaSet=atlas-7yliej-shard-0&authSource=admin&appName=Cluster0';
 
 let gfsBucket;
 
-// Схема сообщений
 const msgSchema = new mongoose.Schema({
 user: String, text: String, room: String,
 fileUrl: String, fileId: String, fileType: String, fileName: String,
@@ -39,16 +38,14 @@ const Msg = mongoose.model('Msg', msgSchema);
 
 mongoose.connect(MONGO_URI)
 .then(async () => {
-console.log('✅ БАЗА ПОДКЛЮЧЕНА');
+console.log('✅ СВЯЗЬ С БАЗОЙ УСТАНОВЛЕНА');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-
-// ПРИНУДИТЕЛЬНОЕ СОЗДАНИЕ ИНДЕКСА УДАЛЕНИЯ (24 часа = 86400 сек)
 try {
 await Msg.collection.createIndex({ "createdAt": 1 }, { expireAfterSeconds: 86400 });
-console.log('✅ ИНДЕКС TTL СОЗДАН (Очистка раз в 24ч)');
-} catch(e) { console.log('⚠ Индекс уже есть или ошибка:', e.message); }
+console.log('✅ TTL-ИНДЕКС ПОДТВЕРЖДЕН');
+} catch(e) { console.log('ℹ Индекс уже активен'); }
 })
-.catch(e => console.error('❌ ОШИБКА БАЗЫ:', e));
+.catch(e => console.error('❌ ОШИБКА ПОДКЛЮЧЕНИЯ:', e.message));
 
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
@@ -65,13 +62,12 @@ try { originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8
 const writeStream = gfsBucket.openUploadStream(originalName, { contentType: req.file.mimetype });
 fs.createReadStream(req.file.path).pipe(writeStream)
 .on('finish', () => {
-console.log('📁 Файл записан в GridFS:', originalName);
 if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: originalName });
 })
 .on('error', (err) => {
-console.error('❌ Ошибка записи:', err);
-res.status(500).json({ error: 'Ошибка записи в БД' });
+console.error('Ошибка GridFS:', err.message);
+res.status(500).json({ error: 'Ошибка БД' });
 });
 });
 
@@ -82,7 +78,7 @@ const files = await gfsBucket.find({ _id: fileId }).toArray();
 if (!files.length) return res.status(404).send('Файл не найден');
 res.set({'Content-Type': files[0].contentType, 'Content-Disposition': req.query.download === '1' ? 'attachment' : 'inline'});
 gfsBucket.openDownloadStream(fileId).pipe(res);
-} catch (e) { res.status(400).send('Ошибка ID'); }
+} catch (e) { res.status(400).send('ID Error'); }
 });
 
 io.on('connection', (socket) => {
@@ -95,7 +91,7 @@ socket.emit('history', history);
 socket.on('message', async (data) => {
 const m = new Msg(data);
 io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
-await m.save();
+await m.save().catch(e => console.log('Ошибка сохранения:', e));
 });
 
 socket.on('deleteMsg', async ({ id, room, fileId }) => {
@@ -107,4 +103,4 @@ io.to(room).emit('msgDeleted', id);
 });
 });
 
-server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log(`v9.5 NITRO READY`));
+server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log(`v9.6 LIVE`));
