@@ -23,12 +23,8 @@ app.use('/uploads', express.static(uploadDir));
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
 filename: (req, file, cb) => {
-// Фикс кодировки: декодируем из Latin1 в UTF-8, если Multer исказил имя
 let fileName = file.originalname;
-try {
-fileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-} catch (e) { console.log("Encoding skip"); }
-
+try { fileName = Buffer.from(file.originalname, 'latin1').toString('utf8'); } catch (e) {}
 cb(null, Date.now() + '-' + fileName.replace(/\s+/g, '_'));
 }
 });
@@ -36,24 +32,13 @@ const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 app.post('/upload', upload.single('file'), (req, res) => {
 if (!req.file) return res.status(400).json({ error: 'No file' });
-
-let originalName = req.file.originalname;
-try {
-originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
-} catch(e) {}
-
-res.json({
-fileUrl: `/uploads/${req.file.filename}`,
-fileType: req.file.mimetype,
-fileName: originalName
-});
+let name = req.file.originalname;
+try { name = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
+res.json({ fileUrl: `/uploads/${req.file.filename}`, fileType: req.file.mimetype, fileName: name });
 });
 
-// МОНГО: Обязательно добавь IP Render в WhiteList в MongoDB Atlas!
 const MONGO_URI = 'mongodb+srv://admin:pass123@cluster0.mongodb.net/chatDB?retryWrites=true&w=majority';
-mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
-.then(() => console.log('✅ База на связи'))
-.catch(e => console.error('❌ Ошибка базы:', e));
+mongoose.connect(MONGO_URI).then(() => console.log('DB OK')).catch(e => console.log('DB ERR', e));
 
 const msgSchema = new mongoose.Schema({
 user: String, text: String, room: String,
@@ -63,28 +48,35 @@ date: { type: Date, default: Date.now }
 const Msg = mongoose.model('Msg', msgSchema);
 
 io.on('connection', (socket) => {
-console.log('User connected');
-
 socket.on('join', async ({ user, room }) => {
 socket.join(room);
 try {
-// Принудительная отправка истории при входе
 const history = await Msg.find({ room }).sort({ date: 1 }).limit(100);
 socket.emit('history', history);
-} catch (e) { console.log(e); }
+} catch (e) {}
 });
 
-socket.on('message', async (data) => {
-try {
+socket.on('message', (data) => {
+// РАЗГОН: Сначала рассылаем всем (мгновенно), потом сохраняем
+const tempId = Date.now() + Math.random();
+const msgData = { ...data, _id: data._id || tempId };
+
+io.to(data.room).emit('renderMsg', msgData);
+
 const m = new Msg(data);
-const saved = await m.save();
-io.to(data.room).emit('renderMsg', saved);
-} catch (e) {
-console.error("Save error:", e);
-io.to(data.room).emit('renderMsg', data);
-}
+m.save().then(saved => {
+// Если нужно, можно отправить подтверждение, но для скорости лучше так
+}).catch(e => console.error("Save error", e));
+});
+
+// ЛОГИКА УДАЛЕНИЯ
+socket.on('deleteMsg', async ({ id, room }) => {
+try {
+await Msg.findByIdAndDelete(id);
+io.to(room).emit('msgDeleted', id);
+} catch (e) { console.log("Delete error", e); }
 });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`v8.2 Overdrive ON ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`v8.3 Nitro ON ${PORT}`));
