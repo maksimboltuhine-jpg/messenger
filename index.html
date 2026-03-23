@@ -3,15 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v8.4 Titanium</title>
+<title>Messenger v9.0 Cloud</title>
 <style>
 * { box-sizing: border-box; }
-body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-/* Версия в углу */
 .v { position: fixed; top: 10px; right: 10px; color: #00ff88; font-size: 10px; border: 1px solid #00ff88; padding: 3px 6px; border-radius: 4px; z-index: 1000; background: rgba(0,0,0,0.8); }
 
-/* Экран логина */
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
 .box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,255,136,0.1); }
 h2 { text-align: center; color: #00ff88; margin: 0 0 10px 0; letter-spacing: 2px; }
@@ -20,29 +18,24 @@ input, select, button { padding: 14px; border-radius: 12px; border: 1px solid #3
 button { background: #00ff88; color: #000; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
 button:hover { background: #00cc6e; transform: translateY(-2px); }
 
-/* Основной чат */
 #chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; border-left: 1px solid #222; border-right: 1px solid #222; }
 #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
 
-/* Сообщения */
 .m { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 80%; align-self: flex-start; border: 1px solid #222; position: relative; transition: 0.3s; word-wrap: break-word; }
 .m.me { align-self: flex-end; background: #0066ff; border: none; box-shadow: 0 4px 15px rgba(0,102,255,0.2); }
 .u { font-size: 10px; opacity: 0.6; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
 
-/* Кнопка удаления */
 .del-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; opacity: 0; font-size: 16px; color: #ff3b3b; transition: 0.2s; padding: 5px; }
 .m:hover .del-btn { opacity: 1; }
 
-/* Медиа файлы */
 img, video, audio { max-width: 100%; border-radius: 12px; margin-top: 10px; display: block; border: 1px solid rgba(255,255,255,0.05); }
 audio { height: 40px; filter: invert(1); width: 100%; }
 .f-name { font-size: 13px; color: #00ff88; margin: 8px 0 4px 0; display: block; font-weight: bold; }
 
-/* Кнопка скачать (Nitro Style) */
+/* Кнопка скачать открывает в новой вкладке! */
 .dl { display: inline-block; margin-top: 10px; padding: 8px 16px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 8px; font-size: 11px; font-weight: bold; background: rgba(0,255,136,0.05); transition: 0.2s; text-align: center; }
 .dl:hover { background: #00ff88; color: #000; }
 
-/* Панель ввода */
 .bar-container { background: #0a0a0a; border-top: 1px solid #222; padding: 15px 20px; }
 #info { font-size: 12px; color: #00ff88; margin-bottom: 8px; display: none; font-weight: bold; }
 #p-c { width: 100%; height: 6px; background: #111; display: none; margin-bottom: 12px; border-radius: 10px; overflow: hidden; border: 1px solid #222; }
@@ -54,25 +47,23 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 .btn-icon:hover { transform: scale(1.1); color: #00ff88; }
 #f { display: none; }
 
-/* Скроллбар */
 #msgs::-webkit-scrollbar { width: 5px; }
 #msgs::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 </style>
 </head>
 <body>
 
-<div class="v">v8.4 TITANIUM</div>
+<div class="v">v9.0 CLOUD DB</div>
 
 <div id="auth">
 <div class="box">
 <h2>MESSENGER</h2>
-<input type="text" id="nick" placeholder="Введите ваш ник">
+<input type="text" id="nick" placeholder="Твой ник">
 <select id="room">
 <option value="General">💬 Общий чат</option>
-<option value="Dev">💻 Разработка</option>
-<option value="Private">🔒 Приват</option>
+<option value="Private">🔒 Приватный</option>
 </select>
-<button onclick="go()">ВОЙТИ В ЧАТ</button>
+<button onclick="go()">ВОЙТИ</button>
 </div>
 </div>
 
@@ -84,7 +75,7 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 <div class="bar">
 <label for="f" class="btn-icon">📎</label>
 <input type="file" id="f" onchange="uFile()">
-<input type="text" id="in" placeholder="Напишите что-нибудь..." onkeypress="if(event.key==='Enter')send()">
+<input type="text" id="in" placeholder="Сообщение..." autocomplete="off" onkeypress="if(event.key==='Enter')send()">
 <div class="btn-icon" onclick="send()">➤</div>
 </div>
 </div>
@@ -95,28 +86,25 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 const socket = io({ transports: ['websocket', 'polling'], reconnection: true });
 let user = '', room = '';
 
-// Вход
 function go() {
 user = document.getElementById('nick').value.trim();
 room = document.getElementById('room').value;
-if(!user) return alert("Ник обязателен!");
+if(!user) return alert("Введите никнейм!");
 document.getElementById('auth').style.display = 'none';
 document.getElementById('chat').style.display = 'flex';
 socket.emit('join', { user, room });
 }
 
-// Превью выбранного файла
 function uFile() {
 const f = document.getElementById('f');
 const inf = document.getElementById('info');
 if(f.files[0]) {
 const sz = (f.files[0].size / (1024*1024)).toFixed(2);
-inf.innerText = `📂 Файл: ${f.files[0].name} (${sz} MB)`;
+inf.innerText = `📂 Выбран: ${f.files[0].name} (${sz} MB)`;
 inf.style.display = 'block';
 }
 }
 
-// История и новые сообщения
 socket.on('history', list => {
 const area = document.getElementById('msgs');
 area.innerHTML = '';
@@ -134,14 +122,12 @@ setTimeout(() => el.remove(), 300);
 }
 });
 
-// Удаление
-function deleteMessage(id) {
+function deleteMessage(id, fileId) {
 if(confirm('Удалить это сообщение у всех?')) {
-socket.emit('deleteMsg', { id, room });
+socket.emit('deleteMsg', { id, room, fileId });
 }
 }
 
-// Сжатие фото перед отправкой (только фото!)
 async function compressImg(file) {
 if (!file.type.startsWith('image/')) return file;
 return new Promise(res => {
@@ -163,14 +149,12 @@ c.toBlob(b => res(new File([b], file.name, {type:'image/jpeg'})), 'image/jpeg', 
 });
 }
 
-// Отправка
 async function send() {
 const txt = document.getElementById('in');
 const fInp = document.getElementById('f');
 const pc = document.getElementById('p-c');
 const pb = document.getElementById('p-b');
 const inf = document.getElementById('info');
-
 if(!txt.value.trim() && !fInp.files[0]) return;
 
 let fUrl = null, fType = null, fName = null, fId = null;
@@ -180,7 +164,7 @@ pc.style.display = 'block';
 let fileToUpload = fInp.files[0];
 
 if(fileToUpload.type.startsWith('image/')) {
-inf.innerText = "⚡ Оптимизация изображения...";
+inf.innerText = "⚡ Сжатие картинки...";
 fileToUpload = await compressImg(fileToUpload);
 }
 
@@ -193,7 +177,7 @@ xhr.open('POST', '/upload', true);
 xhr.upload.onprogress = e => {
 const pct = Math.round((e.loaded / e.total) * 100);
 pb.style.width = pct + '%';
-inf.innerText = pct < 100 ? `🚀 Загрузка: ${pct}%` : "🏁 Финализация на сервере...";
+inf.innerText = pct < 100 ? `🚀 Загрузка в облако: ${pct}%` : "🏁 Сохранение в базу данных...";
 };
 
 const res = await new Promise((resolve, reject) => {
@@ -207,13 +191,13 @@ fType = res.fileType;
 fName = res.fileName;
 fId = res.fileId;
 } catch(e) {
-alert("Ошибка при загрузке. Возможно, сервер Render уснул или файл слишком большой.");
+alert("Ошибка загрузки! Возможно файл слишком большой.");
 }
 
 pc.style.display = 'none'; pb.style.width = '0%'; inf.style.display = 'none'; fInp.value = '';
 }
 
-// Мгновенная отправка через сокеты
+// Мгновенная рассылка
 socket.emit('message', {
 user,
 room,
@@ -226,9 +210,8 @@ fileName: fName
 txt.value = '';
 }
 
-// Отрисовка сообщения в списке
 function add(m) {
-if (document.getElementById(m._id)) return; // Дубликаты не нужны
+if (document.getElementById(m._id)) return;
 
 const area = document.getElementById('msgs');
 const d = document.createElement('div');
@@ -236,26 +219,27 @@ d.className = `m ${m.user === user ? 'me' : ''}`;
 d.id = m._id;
 
 let h = `<div class="u">${m.user}</div>`;
-if(m.user === user) h += `<div class="del-btn" onclick="deleteMessage('${m._id}')">✕</div>`;
+// Передаем fileId, чтобы удалять и сам файл из базы при удалении сообщения
+if(m.user === user) h += `<div class="del-btn" onclick="deleteMessage('${m._id}', '${m.fileId || ''}')">✕</div>`;
 
 if(m.text) h += `<div class="txt">${m.text}</div>`;
 
 if(m.fileUrl) {
-// Ссылка через защищенный стриминг-маршрут /download/
-const dlUrl = `/download/${m.fileId || m.fileUrl.split('/').pop()}?name=${encodeURIComponent(m.fileName || 'file')}`;
+// target="_blank" гарантирует, что при скачивании тебя не выкинет из чата
+const dlUrl = `${m.fileUrl}?download=1`;
 
 if(m.fileType?.includes('image')) {
 h += `<img src="${m.fileUrl}" onclick="window.open(this.src)">`;
 } else if(m.fileType?.includes('video')) {
 h += `<video src="${m.fileUrl}" controls></video>`;
 } else if(m.fileType?.includes('audio')) {
-h += `<span class="f-name">🎵 ${m.fileName || 'Музыкальный трек'}</span>`;
+h += `<span class="f-name">🎵 ${m.fileName || 'Трек'}</span>`;
 h += `<audio src="${m.fileUrl}" controls></audio>`;
 } else {
 h += `<span class="f-name">📄 ${m.fileName || 'Документ'}</span>`;
 }
 
-h += `<a href="${dlUrl}" class="dl">СКАЧАТЬ (ОРИГИНАЛ)</a>`;
+h += `<a href="${dlUrl}" target="_blank" class="dl">СКАЧАТЬ (${m.fileName || 'Файл'})</a>`;
 }
 
 d.innerHTML = h;
