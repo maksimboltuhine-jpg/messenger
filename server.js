@@ -5,14 +5,12 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const compression = require('compression'); // Добавь это (ускоряет передачу текста)
+const compression = require('compression');
 
 const app = express();
 const server = http.createServer(app);
 
-// Включаем сжатие данных
-app.use(compression());
-
+app.use(compression()); // Сжимает данные перед отправкой в браузер
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb', extended: true}));
 
@@ -20,7 +18,7 @@ const io = new Server(server, {
 cors: { origin: "*" },
 transports: ['websocket', 'polling'],
 maxHttpBufferSize: 1e8,
-pingTimeout: 60000 // Увеличили таймаут, чтобы не вылетало при долгой загрузке
+pingTimeout: 60000
 });
 
 const uploadDir = path.join(__dirname, 'uploads');
@@ -41,12 +39,11 @@ const Msg = mongoose.model('Msg', msgSchema);
 
 mongoose.connect(MONGO_URI)
 .then(() => {
-console.log('🚀 v10.1: СКОРОСТНОЙ РЕЖИМ ВКЛЮЧЕН');
+console.log('🚀 v10.2: OVERDRIVE ACTIVE');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 })
-.catch(e => console.error(e.message));
+.catch(e => console.error("Ошибка базы:", e.message));
 
-// Настройка хранилища с минимальной задержкой
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
 filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
@@ -54,58 +51,53 @@ filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-if (!gfsBucket || !req.file) return res.status(500).json({ error: 'Ошибка' });
+if (!gfsBucket || !req.file) return res.status(500).json({ error: 'Ошибка сервера' });
 
 let correctName = req.file.originalname;
 try { correctName = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
 
-// Стриминг напрямую в базу
 const writeStream = gfsBucket.openUploadStream(correctName, { contentType: req.file.mimetype });
 
 fs.createReadStream(req.file.path)
 .pipe(writeStream)
 .on('finish', () => {
-fs.promises.unlink(req.file.path).catch(() => {}); // Асинхронное удаление быстрее
+fs.promises.unlink(req.file.path).catch(() => {});
 res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: correctName });
 })
-.on('error', () => res.status(500).json({ error: 'Ошибка записи' }));
+.on('error', (err) => res.status(500).json({ error: err.message }));
 });
 
 app.get('/file/:id', async (req, res) => {
 try {
 const fileId = new mongoose.Types.ObjectId(req.params.id);
 const files = await gfsBucket.find({ _id: fileId }).toArray();
-if (!files.length) return res.status(404).send('Удалено');
-
+if (!files.length) return res.status(404).send('Файл удален');
 const file = files[0];
 res.set({
 'Content-Type': file.contentType,
 'Content-Disposition': `attachment; filename="${encodeURIComponent(file.filename)}"`,
-'Cache-Control': 'public, max-age=31536000' // Кэш на стороне клиента (ускоряет повторное открытие)
+'Cache-Control': 'public, max-age=31536000'
 });
-
 gfsBucket.openDownloadStream(fileId).pipe(res);
-} catch (e) { res.status(400).send('Ошибка'); }
+} catch (e) { res.status(400).send('Ошибка ID'); }
 });
 
 io.on('connection', (socket) => {
 socket.on('join', async ({ user, room }) => {
 socket.join(room);
-const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean(); // .lean() ускоряет выборку
+const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean();
 socket.emit('history', history);
 });
-
 socket.on('message', async (data) => {
 const m = new Msg(data);
 io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
-await m.save();
+await m.save().catch(e => console.log("Ошибка сохранения:", e));
 });
-
 socket.on('deleteMsg', async ({ id, room, fileId }) => {
+try {
 await Msg.findByIdAndDelete(id);
 if (fileId) gfsBucket.delete(new mongoose.Types.ObjectId(fileId)).catch(() => {});
 io.to(room).emit('msgDeleted', id);
+} catch (e) {}
 });
-});
-
-server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log(`v10.1 LIVE`));
+});server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log(`v10.2 LIVE`));

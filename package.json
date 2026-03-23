@@ -1,14 +1,16 @@
 {
 "name": "messenger-pro-files",
 "version": "1.1.0",
+"description": "Turbo Chat with Image Compression",
 "main": "server.js",
 "scripts": {
 "start": "node server.js"
 },
 "dependencies": {
+"compression": "^1.7.4",
 "express": "^4.18.2",
-"socket.io": "^4.7.4",
-"mongoose": "^8.0.0",
-"multer": "^1.4.5-lts.1"
+"mongoose": "^7.0.0",
+"multer": "^1.4.5-lts.1",
+"socket.io": "^4.6.1"
 }
 }
