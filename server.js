@@ -18,14 +18,38 @@ const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 app.use(express.static(__dirname));
-app.use('/uploads', express.static(uploadDir));
+
+// НОВЫЙ МАРШРУТ ДЛЯ СКАЧИВАНИЯ (Стриминг)
+app.get('/download/:filename', (req, res) => {
+const filePath = path.join(uploadDir, req.params.filename);
+
+if (fs.existsSync(filePath)) {
+const stat = fs.statSync(filePath);
+const originalName = req.query.name || req.params.filename;
+
+// Кодируем имя для заголовка, чтобы не было кракозябр при сохранении
+const encodedName = encodeURIComponent(originalName);
+
+res.writeHead(200, {
+'Content-Type': 'application/octet-stream',
+'Content-Length': stat.size,
+'Content-Disposition': `attachment; filename*=UTF-8''${encodedName}`
+});
+
+// Прямой поток из файла в браузер (память не ест!)
+const readStream = fs.createReadStream(filePath);
+readStream.pipe(res);
+} else {
+res.status(404).send('Файл не найден');
+}
+});
 
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
 filename: (req, file, cb) => {
-let fileName = file.originalname;
-try { fileName = Buffer.from(file.originalname, 'latin1').toString('utf8'); } catch (e) {}
-cb(null, Date.now() + '-' + fileName.replace(/\s+/g, '_'));
+let name = file.originalname;
+try { name = Buffer.from(file.originalname, 'latin1').toString('utf8'); } catch (e) {}
+cb(null, Date.now() + '-' + name.replace(/\s+/g, '_'));
 }
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
@@ -34,15 +58,15 @@ app.post('/upload', upload.single('file'), (req, res) => {
 if (!req.file) return res.status(400).json({ error: 'No file' });
 let name = req.file.originalname;
 try { name = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
-res.json({ fileUrl: `/uploads/${req.file.filename}`, fileType: req.file.mimetype, fileName: name });
+res.json({ fileUrl: `/uploads/${req.file.filename}`, fileId: req.file.filename, fileType: req.file.mimetype, fileName: name });
 });
 
 const MONGO_URI = 'mongodb+srv://admin:pass123@cluster0.mongodb.net/chatDB?retryWrites=true&w=majority';
-mongoose.connect(MONGO_URI).then(() => console.log('DB OK')).catch(e => console.log('DB ERR', e));
+mongoose.connect(MONGO_URI).catch(e => console.log('DB ERR', e));
 
 const msgSchema = new mongoose.Schema({
 user: String, text: String, room: String,
-fileUrl: String, fileType: String, fileName: String,
+fileUrl: String, fileId: String, fileType: String, fileName: String,
 date: { type: Date, default: Date.now }
 });
 const Msg = mongoose.model('Msg', msgSchema);
@@ -57,26 +81,18 @@ socket.emit('history', history);
 });
 
 socket.on('message', (data) => {
-// РАЗГОН: Сначала рассылаем всем (мгновенно), потом сохраняем
 const tempId = Date.now() + Math.random();
-const msgData = { ...data, _id: data._id || tempId };
-
-io.to(data.room).emit('renderMsg', msgData);
-
-const m = new Msg(data);
-m.save().then(saved => {
-// Если нужно, можно отправить подтверждение, но для скорости лучше так
-}).catch(e => console.error("Save error", e));
+io.to(data.room).emit('renderMsg', { ...data, _id: data._id || tempId });
+new Msg(data).save().catch(e => console.error(e));
 });
 
-// ЛОГИКА УДАЛЕНИЯ
 socket.on('deleteMsg', async ({ id, room }) => {
 try {
 await Msg.findByIdAndDelete(id);
 io.to(room).emit('msgDeleted', id);
-} catch (e) { console.log("Delete error", e); }
+} catch (e) {}
 });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`v8.3 Nitro ON ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`v8.4 Titanium ON ${PORT}`));
