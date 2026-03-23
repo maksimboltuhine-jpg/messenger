@@ -3,101 +3,92 @@ const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const compression = require('compression');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
-const compression = require('compression');
 
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
-app.use(compression()); // Сжимает данные перед отправкой в браузер
-app.use(express.json({limit: '100mb'}));
-app.use(express.urlencoded({limit: '100mb', extended: true}));
-
-const io = new Server(server, {
-cors: { origin: "*" },
-transports: ['websocket', 'polling'],
-maxHttpBufferSize: 1e8,
-pingTimeout: 60000
-});
-
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
+app.use(compression());
+app.use(express.json());
 app.use(express.static(__dirname));
 
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 
-let gfsBucket;
+// СХЕМА ПОЛЬЗОВАТЕЛЯ
+const userSchema = new mongoose.Schema({
+login: { type: String, unique: true, required: true },
+password: { type: String, required: true },
+uid: String, // Тот самый номер #1234
+avatar: { type: String, default: '' }
+});
+const User = mongoose.model('User', userSchema);
 
+// СХЕМА СООБЩЕНИЙ (теперь с UID)
 const msgSchema = new mongoose.Schema({
-user: String, text: String, room: String,
-fileUrl: String, fileId: String, fileType: String, fileName: String,
+user: String, uid: String, text: String, room: String,
+fileUrl: String, fileType: String, fileName: String,
 createdAt: { type: Date, default: Date.now, expires: 86400 }
 });
 const Msg = mongoose.model('Msg', msgSchema);
 
-mongoose.connect(MONGO_URI)
-.then(() => {
-console.log('🚀 v10.2: OVERDRIVE ACTIVE');
+let gfsBucket;
+mongoose.connect(MONGO_URI).then(() => {
+console.log('🚀 v11.0: AUTH SYSTEM ONLINE');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-})
-.catch(e => console.error("Ошибка базы:", e.message));
-
-const storage = multer.diskStorage({
-destination: (req, file, cb) => cb(null, uploadDir),
-filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
-
-app.post('/upload', upload.single('file'), (req, res) => {
-if (!gfsBucket || !req.file) return res.status(500).json({ error: 'Ошибка сервера' });
-
-let correctName = req.file.originalname;
-try { correctName = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
-
-const writeStream = gfsBucket.openUploadStream(correctName, { contentType: req.file.mimetype });
-
-fs.createReadStream(req.file.path)
-.pipe(writeStream)
-.on('finish', () => {
-fs.promises.unlink(req.file.path).catch(() => {});
-res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: correctName });
-})
-.on('error', (err) => res.status(500).json({ error: err.message }));
 });
 
-app.get('/file/:id', async (req, res) => {
+// РЕГИСТРАЦИЯ И ВХОД
+app.post('/auth', async (req, res) => {
+const { login, password, isReg } = req.body;
 try {
-const fileId = new mongoose.Types.ObjectId(req.params.id);
-const files = await gfsBucket.find({ _id: fileId }).toArray();
-if (!files.length) return res.status(404).send('Файл удален');
-const file = files[0];
-res.set({
-'Content-Type': file.contentType,
-'Content-Disposition': `attachment; filename="${encodeURIComponent(file.filename)}"`,
-'Cache-Control': 'public, max-age=31536000'
+let user = await User.findOne({ login });
+
+if (isReg) {
+if (user) return res.status(400).json({ error: "Логин занят" });
+const hashPassword = await bcrypt.hash(password, 7);
+const uid = Math.floor(1000 + Math.random() * 9000); // Генерим #номер
+user = new User({ login, password: hashPassword, uid: `#${uid}` });
+await user.save();
+} else {
+if (!user || !(await bcrypt.compare(password, user.password))) {
+return res.status(400).json({ error: "Неверный логин или пароль" });
+}
+}
+res.json({ login: user.login, uid: user.uid });
+} catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
-gfsBucket.openDownloadStream(fileId).pipe(res);
-} catch (e) { res.status(400).send('Ошибка ID'); }
+
+// Загрузка файлов (оставляем старую логику, она рабочая)
+const upload = multer({ dest: 'uploads/' });
+app.post('/upload', upload.single('file'), (req, res) => {
+if (!gfsBucket || !req.file) return res.status(500).send('Ошибка');
+const writeStream = gfsBucket.openUploadStream(req.file.originalname);
+fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
+fs.promises.unlink(req.file.path);
+res.json({ fileUrl: `/file/${writeStream.id}`, fileType: req.file.mimetype, fileName: req.file.originalname });
+});
+});
+
+app.get('/file/:id', (req, res) => {
+gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
 });
 
 io.on('connection', (socket) => {
-socket.on('join', async ({ user, room }) => {
+socket.on('join', async (room) => {
 socket.join(room);
 const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean();
 socket.emit('history', history);
 });
+
 socket.on('message', async (data) => {
 const m = new Msg(data);
 io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
-await m.save().catch(e => console.log("Ошибка сохранения:", e));
+await m.save();
 });
-socket.on('deleteMsg', async ({ id, room, fileId }) => {
-try {
-await Msg.findByIdAndDelete(id);
-if (fileId) gfsBucket.delete(new mongoose.Types.ObjectId(fileId)).catch(() => {});
-io.to(room).emit('msgDeleted', id);
-} catch (e) {}
 });
-});server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log(`v10.2 LIVE`));
+
+server.listen(process.env.PORT || 10000, '0.0.0.0');

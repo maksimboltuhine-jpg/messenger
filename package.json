@@ -1,12 +1,10 @@
 {
-"name": "messenger-pro-files",
-"version": "1.1.0",
-"description": "Turbo Chat with Image Compression",
+"name": "messenger-v11",
+"version": "11.0.0",
+"description": "Auth & Unique IDs",
 "main": "server.js",
-"scripts": {
-"start": "node server.js"
-},
 "dependencies": {
+"bcryptjs": "^2.4.3",
 "compression": "^1.7.4",
 "express": "^4.18.2",
 "mongoose": "^7.0.0",
