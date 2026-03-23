@@ -9,6 +9,7 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
+// Максимальный лимит для работы с большими данными
 app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({limit: '100mb', extended: true}));
 
@@ -23,7 +24,7 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 app.use(express.static(__dirname));
 
-// ИСПОЛЬЗУЕМ КРАТКИЙ ФОРМАТ (SRV) - ОН СТАБИЛЬНЕЕ
+// ИСПОЛЬЗУЕМ SRV ДЛЯ СКОРОСТИ
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 
 let gfsBucket;
@@ -35,38 +36,44 @@ createdAt: { type: Date, default: Date.now, expires: 86400 }
 });
 const Msg = mongoose.model('Msg', msgSchema);
 
-// УЛУЧШЕННЫЙ БЛОК ПОДКЛЮЧЕНИЯ
-mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
+mongoose.connect(MONGO_URI)
 .then(() => {
-console.log('✅✅✅ ПОДКЛЮЧЕНО К MONGODB ATLAS ✅✅✅');
+console.log('🚀 v10.0: ТУРБО-СВЯЗЬ С БАЗОЙ УСТАНОВЛЕНА');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 })
-.catch(e => {
-console.log('❌❌❌ ОШИБКА ПОДКЛЮЧЕНИЯ К БАЗЕ ❌❌❌');
-console.log('ПРИЧИНА:', e.message);
-if(e.message.includes('Authentication failed')) console.log('СОВЕТ: Твой пароль Maksim12345 не подходит! Обнови его в панели Atlas.');
-});
+.catch(e => console.error('❌ ОШИБКА:', e.message));
 
 const storage = multer.diskStorage({
 destination: (req, file, cb) => cb(null, uploadDir),
-filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-if (!gfsBucket) return res.status(500).json({ error: 'Сервер не подключен к базе данных. Проверь логи Render.' });
-if (!req.file) return res.status(400).json({ error: 'Файл не выбран.' });
+if (!gfsBucket || !req.file) return res.status(500).json({ error: 'Ошибка инициализации' });
 
-let originalName = req.file.originalname;
-try { originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
+// ФИКС НАЗВАНИЙ: Декодируем из latin1 в UTF-8
+let correctName = req.file.originalname;
+try {
+correctName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+} catch(e) { console.log('Ошибка кодировки'); }
 
-const writeStream = gfsBucket.openUploadStream(originalName, { contentType: req.file.mimetype });
+const writeStream = gfsBucket.openUploadStream(correctName, {
+contentType: req.file.mimetype,
+metadata: { originalName: correctName }
+});
+
 fs.createReadStream(req.file.path).pipe(writeStream)
 .on('finish', () => {
 if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: originalName });
+res.json({
+fileUrl: `/file/${writeStream.id}`,
+fileId: writeStream.id,
+fileType: req.file.mimetype,
+fileName: correctName
+});
 })
-.on('error', (err) => res.status(500).json({ error: 'Ошибка БД: ' + err.message }));
+.on('error', () => res.status(500).json({ error: 'Ошибка записи' }));
 });
 
 app.get('/file/:id', async (req, res) => {
@@ -74,9 +81,19 @@ try {
 const fileId = new mongoose.Types.ObjectId(req.params.id);
 const files = await gfsBucket.find({ _id: fileId }).toArray();
 if (!files.length) return res.status(404).send('Файл не найден');
-res.set({'Content-Type': files[0].contentType, 'Content-Disposition': req.query.download === '1' ? 'attachment' : 'inline'});
+
+const file = files[0];
+// ФИКС СКАЧИВАНИЯ: Правильные заголовки для стабильности
+res.set({
+'Content-Type': file.contentType,
+'Content-Disposition': req.query.download === '1'
+? `attachment; filename="${encodeURIComponent(file.filename)}"`
+: 'inline',
+'Cache-Control': 'public, max-age=86400'
+});
+
 gfsBucket.openDownloadStream(fileId).pipe(res);
-} catch (e) { res.status(400).send('Ошибка ID'); }
+} catch (e) { res.status(400).send('Ошибка запроса'); }
 });
 
 io.on('connection', (socket) => {
@@ -87,18 +104,24 @@ const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50);
 socket.emit('history', history);
 } catch(e) {}
 });
+
 socket.on('message', async (data) => {
 const m = new Msg(data);
-io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
-await m.save().catch(e => console.log('Save error:', e));
+io.to(data.room).emit('renderMsg', { ...data, _id:m._id });
+await m.save().catch(e => console.log(e));
 });
-socket.on('deleteMsg', async ({ id, room,fileId }) => {
+
+socket.on('deleteMsg', async ({ id, room, fileId }) => {
 try {
 await Msg.findByIdAndDelete(id);
-if (fileId && gfsBucket) gfsBucket.delete(new mongoose.Types.ObjectId(fileId)).catch(() => {});
+if (fileId && gfsBucket) {
+const fId = new mongoose.Types.ObjectId(fileId);
+gfsBucket.delete(fId).catch(() => {});
+}
 io.to(room).emit('msgDeleted', id);
 } catch (e) {}
 });
 });
 
-server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log(`v9.9 LIVE`));
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => console.log(`v10.0 TURBO LIVE`));

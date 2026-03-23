@@ -3,42 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Messenger v9.8</title>
+<title>Messenger v10.0 Turbo</title>
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-/* ВЕРНУЛ ПЛАШКУ С ВЕРСИЕЙ */
+/* Плашка версии */
 .v { position: fixed; top: 10px; right: 10px; color: #00ff88; font-size: 12px; border: 1px solid #00ff88; padding: 4px 8px; z-index: 1000; font-weight: bold; border-radius: 5px; background: #000; }
 
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
 .box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; }
 input, select, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
 button { background: #00ff88; color: #000; border: none; font-weight: bold; cursor: pointer; }
+
 #chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; border-left: 1px solid #222; border-right: 1px solid #222; }
 #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-.m { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; }
+
+.m { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 80%; align-self: flex-start; position: relative; border: 1px solid #222; word-wrap: break-word; }
 .m.me { align-self: flex-end; background: #0066ff; border: none; }
 .u { font-size: 10px; opacity: 0.6; margin-bottom: 4px; font-weight: bold; }
 .del-btn { position: absolute; top: 5px; right: 10px; cursor: pointer; color: #ff3b3b; padding: 5px; font-weight: bold; }
+
 img, video, audio { max-width: 100%; border-radius: 12px; margin-top: 10px; display: block; }
 audio { height: 40px; filter: invert(1); width: 100%; }
-.dl { display: block; margin-top: 10px; padding: 8px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 8px; text-align: center; font-size: 12px; font-weight: bold; }
+
+.dl { display: block; margin-top: 10px; padding: 10px; color: #00ff88; text-decoration: none; border: 1px solid #00ff88; border-radius: 10px; text-align: center; font-size: 12px; font-weight: bold; transition: 0.2s; }
+.dl:hover { background: rgba(0, 255, 136, 0.1); }
+
 .bar-container { background: #0a0a0a; border-top: 1px solid #222; padding: 15px; }
 #p-c { width: 100%; height: 6px; background: #111; display: none; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
 #p-b { height: 100%; width: 0%; background: #00ff88; transition: width 0.1s; }
+
 .bar { display: flex; gap: 10px; align-items: center; }
 #in { flex: 1; }
-.btn-icon { font-size: 24px; cursor: pointer; color: #0066ff; }
+.btn-icon { font-size: 24px; cursor: pointer; color: #0066ff; display: flex; align-items: center; }
 #f { display: none; }
 </style>
 </head>
 <body>
-<div class="v">v9.8 FINAL</div>
+<div class="v">v10.0 TURBO</div>
 
 <div id="auth">
 <div class="box">
-<h2 style="color:#00ff88; text-align:center;">MESSENGER</h2>
+<h2 style="color:#00ff88; text-align:center; margin-top:0;">MESSENGER</h2>
 <input type="text" id="nick" placeholder="Никнейм">
 <select id="room"><option value="Main">Общий чат</option></select>
 <button onclick="go()">ВОЙТИ</button>
@@ -49,17 +56,17 @@ audio { height: 40px; filter: invert(1); width: 100%; }
 <div id="msgs"></div>
 <div class="bar-container">
 <div id="p-c"><div id="p-b"></div></div>
-<div id="info" style="font-size:10px; color:#00ff88; margin-bottom:5px;"></div>
+<div id="info" style="font-size:10px; color:#00ff88; margin-bottom:5px; min-height: 12px;"></div>
 <div class="bar">
 <label for="f" class="btn-icon">📎</label>
-<input type="file" id="f" onchange="document.getElementById('info').innerText='Файл: '+this.files[0].name">
+<input type="file" id="f" onchange="document.getElementById('info').innerText='Файл готов: '+this.files[0].name">
 <input type="text" id="in" placeholder="Сообщение..." autocomplete="off" onkeypress="if(event.key==='Enter')send()">
 <div class="btn-icon" onclick="send()">➤</div>
 </div>
 </div>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="/socket.io/socket.io.js"></script>;
 <script>
 const socket = io({ transports: ['polling', 'websocket'] });
 let user = '', room = '';
@@ -67,7 +74,7 @@ let user = '', room = '';
 function go() {
 user = document.getElementById('nick').value.trim();
 room = document.getElementById('room').value;
-if(!user) return alert("Ник!");
+if(!user) return alert("Введите ник!");
 document.getElementById('auth').style.display = 'none';
 document.getElementById('chat').style.display = 'flex';
 socket.emit('join', { user, room });
@@ -86,33 +93,41 @@ let fD = null;
 
 if(fInp.files[0]) {
 pc.style.display = 'block';
-const fd = new FormData(); fd.append('file', fInp.files[0]);
+const fd = new FormData();
+fd.append('file', fInp.files[0]);
+
 try {
-const res = await new Promise((resolve, reject) => {
+fD = await new Promise((resolve, reject) => {
 const xhr = new XMLHttpRequest();
 xhr.open('POST', '/upload');
 xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
 xhr.onload = () => {
 if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
 else {
-// Теперь мы вытаскиваем текст ошибки с сервера!
 try { reject(JSON.parse(xhr.responseText).error); }
-catch { reject(xhr.statusText || "Неизвестная ошибка сервера"); }
+catch { reject("Ошибка сервера: " + xhr.status); }
 }
 };
-xhr.onerror = () => reject("Нет соединения с сервером");
+xhr.onerror = () => reject("Сбой сети или сервер выключен");
 xhr.send(fd);
 });
-fD = res;
 } catch(e) {
-alert("Ошибка загрузки: " + e); // Вот тут покажет, в чем беда!
-pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = ''; inf.innerText = '';
-return; // Останавливаем отправку сообщения, если файл не загрузился
+alert("Ошибка: " + e);
+pc.style.display = 'none'; pb.style.width = '0%';
+return;
 }
 pc.style.display = 'none'; pb.style.width = '0%'; fInp.value = ''; inf.innerText = '';
 }
 
-socket.emit('message', { user, room, text: txt.value, fileUrl: fD?.fileUrl, fileId: fD?.fileId, fileType: fD?.fileType, fileName: fD?.fileName });
+socket.emit('message', {
+user,
+room,
+text: txt.value,
+fileUrl: fD?.fileUrl,
+fileId: fD?.fileId,
+fileType: fD?.fileType,
+fileName: fD?.fileName
+});
 txt.value = '';
 }
 
@@ -120,16 +135,25 @@ function add(m) {
 if(document.getElementById(m._id)) return;
 const area = document.getElementById('msgs'), d = document.createElement('div');
 d.className = `m ${m.user === user ? 'me' : ''}`; d.id = m._id;
+
 let h = `<div class="u">${m.user}</div>`;
 if(m.user === user) h += `<div class="del-btn" onclick="socket.emit('deleteMsg',{id:'${m._id}',room:'${room}',fileId:'${m.fileId}'})">✕</div>`;
+
 if(m.text) h += `<div>${m.text}</div>`;
+
 if(m.fileUrl) {
-if(m.fileType?.includes('image')) h += `<img src="${m.fileUrl}" onclick="window.open(this.src)">`;
-else if(m.fileType?.includes('video')) h += `<video src="${m.fileUrl}" controls></video>`;
-else if(m.fileType?.includes('audio')) h += `<audio src="${m.fileUrl}" controls></audio>`;
-h += `<a href="${m.fileUrl}?download=1" target="_blank" class="dl">СКАЧАТЬ ${m.fileName || 'ФАЙЛ'}</a>`;
+const type = m.fileType || '';
+if(type.includes('image')) h += `<img src="${m.fileUrl}" onclick="window.open(this.src)">`;
+else if(type.includes('video')) h += `<video src="${m.fileUrl}" controls></video>`;
+else if(type.includes('audio')) h += `<audio src="${m.fileUrl}" controls></audio>`;
+
+// Ссылка на скачивание с защитой от коверканья имени
+h += `<a href="${m.fileUrl}?download=1" target="_blank" class="dl">💾 ${m.fileName || 'Файл'}</a>`;
 }
-d.innerHTML = h; area.appendChild(d); area.scrollTop = area.scrollHeight;
+
+d.innerHTML = h;
+area.appendChild(d);
+area.scrollTop = area.scrollHeight;
 }
 </script>
 </body>
