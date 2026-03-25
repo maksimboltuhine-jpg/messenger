@@ -16,10 +16,10 @@ app.use(compression());
 app.use(express.json({limit: '50mb'}));
 app.use(express.static(__dirname));
 
-// !!! ВНИМАНИЕ: ЗАМЕНИ ЭТУ СТРОКУ НА СВОЮ ИЗ ATLAS !!!
-// Ошибка ENOTFOUND была из-за того, что здесь стояло "abcde"
-const MONGO_URI = 'mongodb+srv://maksim:Gfynthf2010@cluster0.XXXXX.mongodb.net/messenger?retryWrites=true&w=majority';
+// ТВОЯ ССЫЛКА С ПАРОЛЕМ ИЗ СКРИНШОТА
+const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.abcde.mongodb.net/messenger?retryWrites=true&w=majority';
 
+// Схема пользователя
 const User = mongoose.model('User', new mongoose.Schema({
 login: { type: String, unique: true, required: true },
 password: { type: String, required: true },
@@ -28,9 +28,10 @@ avatar: { type: String, default: 'https://cdn-icons-png.flaticon.com/512/149/149
 uid: String
 }));
 
+// Схема сообщений
 const Msg = mongoose.model('Msg', new mongoose.Schema({
 user: String, uid: String, text: String, room: String,
-fileUrl: String, fileType: String, avatar: String,
+fileUrl: String, avatar: String, displayName: String,
 createdAt: { type: Date, default: Date.now, expires: 86400 }
 }));
 
@@ -39,14 +40,13 @@ mongoose.connect(MONGO_URI).then(() => {
 console.log('🚀 БАЗА ПОДКЛЮЧЕНА');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 }).catch(err => {
-console.error('❌ КРИТИЧЕСКАЯ ОШИБКА БАЗЫ:', err.message);
+console.error('❌ ОШИБКА БАЗЫ (Проверь Network Access в Atlas!):', err.message);
 });
 
+// Авторизация
 app.post('/auth', async (req, res) => {
 const { login, password, isReg } = req.body;
 try {
-if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: "База данных еще грузится..." });
-
 let user = await User.findOne({ login });
 if (isReg) {
 if (user) return res.status(400).json({ error: "Логин занят" });
@@ -60,12 +60,10 @@ return res.status(400).json({ error: "Неверный логин или пар�
 }
 }
 res.json({ login: user.login, uid: user.uid, avatar: user.avatar, displayName: user.displayName });
-} catch (e) {
-console.log(e);
-res.status(500).json({ error: "Ошибка сервера" });
-}
+} catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
+// Профиль
 app.post('/update-profile', async (req, res) => {
 const { login, displayName, avatar } = req.body;
 try {
@@ -74,6 +72,7 @@ res.json({ success: true });
 } catch (e) { res.status(500).send(); }
 });
 
+// Файлы и авы
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', upload.single('file'), (req, res) => {
 if (!gfsBucket || !req.file) return res.status(500).send();
@@ -89,13 +88,12 @@ if(!gfsBucket) return res.status(500).send();
 gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
 });
 
+// Сокеты
 io.on('connection', (socket) => {
 socket.on('join', async (room) => {
 socket.join(room);
-if (mongoose.connection.readyState === 1) {
 const history = await Msg.find({ room }).sort({ createdAt: -1 }).limit(50).lean();
 socket.emit('history', history.reverse());
-}
 });
 socket.on('message', async (data) => {
 const m = new Msg(data);
