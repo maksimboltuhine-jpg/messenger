@@ -3,32 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>MESSENGER v12</title>
+<title>MESSENGER</title>
 <style>
-* { box-sizing: border-box; }
 body { background: #0b0b0b; color: #fff; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; }
-
-/* Авторизация */
 #auth { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 20px; }
 input { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 8px; margin-bottom: 10px; width: 100%; max-width: 300px; }
 button { background: #00ff88; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; max-width: 300px; margin-bottom: 5px; }
-
-/* Чат */
-header { background: #1a1a1a; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+header { background: #1a1a1a; padding: 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
 #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-
-.msg { display: flex; gap: 10px; align-items: flex-start; max-width: 85%; }
-.msg img.av { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
-.msg-body { background: #222; padding: 10px; border-radius: 12px; position: relative; }
-.u-info { font-size: 10px; color: #00ff88; margin-bottom: 4px; display: block; }
-
-/* Профиль */
+.msg { display: flex; gap: 10px; max-width: 85%; }
+.msg img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+.msg-body { background: #222; padding: 10px; border-radius: 12px; }
 .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; align-items: center; justify-content: center; }
-.card { background: #1a1a1a; padding: 25px; border-radius: 20px; text-align: center; width: 90%; max-width: 320px; }
-.av-big { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #00ff88; margin-bottom: 15px; cursor: pointer; }
-
+.card { background: #1a1a1a; padding: 25px; border-radius: 20px; text-align: center; width: 300px; }
+.av-big { width: 100px; height: 100px; border-radius: 50%; border: 2px solid #00ff88; margin-bottom: 15px; cursor: pointer; }
 footer { background: #1a1a1a; padding: 10px; display: flex; gap: 10px; }
-#file-indicator { font-size: 10px; color: #00ff88; position: absolute; bottom: 60px; left: 10px; }
 </style>
 </head>
 <body>
@@ -42,27 +31,26 @@ footer { background: #1a1a1a; padding: 10px; display: flex; gap: 10px; }
 </div>
 
 <header>
-<div id="my-name" onclick="openProfile()" style="cursor:pointer">Загрузка...</div>
-<div>ROOM: <span id="room-id">Global</span></div>
+<div id="my-name" onclick="openProfile()" style="cursor:pointer; color:#00ff88">Профиль</div>
+<div id="room-id">Global Room</div>
 </header>
 
 <div id="chat"></div>
-<div id="file-indicator"></div>
 
 <footer>
-<input type="file" id="f" hidden onchange="showFile()">
+<input type="file" id="f" hidden onchange="send()">
 <button style="width:50px" onclick="document.getElementById('f').click()">+</button>
 <input type="text" id="m" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')send()">
-<button style="width:80px" onclick="send()"»</button>
+<button style="width:60px" onclick="send()"»</button>
 </footer>
 
 <div class="overlay" id="p-overlay">
 <div class="card">
-<h3>РЕДАКТИРОВАТЬ</h3>
+<h3>ПРОФИЛЬ</h3>
 <img id="p-av" src="" class="av-big" onclick="document.getElementById('p-f').click()">
 <input type="file" id="p-f" hidden accept="image/*" onchange="uploadAv(this)">
 <div id="p-uid" style="color:#555; margin-bottom:10px">#0000</div>
-<input type="text" id="p-name" placeholder="Отображаемое имя">
+<input type="text" id="p-name" placeholder="Никнейм">
 <button onclick="saveProfile()">СОХРАНИТЬ</button>
 <button style="background:#333; color:#fff" onclick="closeProfile()">ЗАКРЫТЬ</button>
 </div>
@@ -74,32 +62,42 @@ const socket = io();
 let me = { login: '', uid: '', avatar: '', displayName: '' };
 let curRoom = 'global';
 
+// Функция авторизации (которая у тебя пропала)
 async function auth(isReg) {
 const login = document.getElementById('l').value;
 const password = document.getElementById('p').value;
+
+if (!login || !password) return alert("Введи логин и пароль");
+
+try {
 const res = await fetch('/auth', {
 method: 'POST',
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify({ login, password, isReg })
 });
+
 const data = await res.json();
 if (data.error) return alert(data.error);
 
 me = data;
 document.getElementById('auth').style.display = 'none';
-document.getElementById('my-name').innerText = `${me.displayName} ${me.uid}`;
+document.getElementById('my-name').innerText = me.displayName + " " + me.uid;
 socket.emit('join', curRoom);
+} catch (err) {
+alert("Ошибка соединения с сервером. Проверь базу данных.");
+}
 }
 
+// Отрисовка сообщений
 function renderMsg(data) {
 const div = document.createElement('div');
 div.className = 'msg';
 div.innerHTML = `
-<img src="${data.avatar}" class="av" onclick="viewUser('${data.uid}')">
+<img src="${data.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}">
 <div class="msg-body">
-<span class="u-info">${data.displayName} ${data.uid}</span>
+<div style="font-size:10px; color:#00ff88">${data.displayName} ${data.uid}</div>
 ${data.text ? `<div>${data.text}</div>` : ''}
-${data.fileUrl ? `<img src="${data.fileUrl}" style="max-width:200px; border-radius:8px; margin-top:5px">` : ''}
+${data.fileUrl ? `<img src="${data.fileUrl}" style="max-width:200px; display:block; margin-top:5px; border-radius: 8px;">` : ''}
 </div>
 `;
 const chat = document.getElementById('chat');
@@ -107,76 +105,79 @@ chat.appendChild(div);
 chat.scrollTop = chat.scrollHeight;
 }
 
+// Отправка сообщений и файлов
 async function send() {
 const text = document.getElementById('m').value;
 const file = document.getElementById('f').files[0];
-let fileData = null;
+let fileUrl = null;
 
 if (file) {
 const formData = new FormData();
 formData.append('file', file);
+try {
 const res = await fetch('/upload', { method: 'POST', body: formData });
-fileData = await res.json();
+const d = await res.json();
+fileUrl = d.fileUrl;
+} catch (e) {
+return alert("Ошибка загрузки файла");
+}
 }
 
-if (!text && !fileData) return;
+if (!text && !fileUrl) return;
 
 socket.emit('message', {
-user: me.login,
-displayName: me.displayName,
-uid: me.uid,
-avatar: me.avatar,
-text,
-fileUrl: fileData ? fileData.fileUrl : null,
-room: curRoom
+user: me.login, displayName: me.displayName, uid: me.uid,
+avatar: me.avatar, text, fileUrl, room: curRoom
 });
-
 document.getElementById('m').value = '';
 document.getElementById('f').value = '';
-document.getElementById('file-indicator').innerText = '';
 }
 
-function showFile() {
-const file = document.getElementById('f').files[0];
-if(file) document.getElementById('file-indicator').innerText = "Выбран файл: " + file.name;
-}
-
-// Логика профиля
+// Управление профилем
 function openProfile() {
 document.getElementById('p-overlay').style.display = 'flex';
-document.getElementById('p-av').src = me.avatar;
+document.getElementById('p-av').src = me.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 document.getElementById('p-name').value = me.displayName;
 document.getElementById('p-uid').innerText = me.uid;
 }
 
-function closeProfile() { document.getElementById('p-overlay').style.display = 'none'; }
+function closeProfile() {
+document.getElementById('p-overlay').style.display = 'none';
+}
 
+// Загрузка аватарки
 async function uploadAv(input) {
-const file = input.files[0];
 const formData = new FormData();
-formData.append('file', file);
+formData.append('file', input.files[0]);
+try {
 const res = await fetch('/upload', { method: 'POST', body: formData });
 const data = await res.json();
 document.getElementById('p-av').src = data.fileUrl;
 me.avatar = data.fileUrl;
+} catch (e) {
+alert("Ошибка загрузки аватарки");
+}
 }
 
+// Сохранение профиля
 async function saveProfile() {
 const displayName = document.getElementById('p-name').value;
-const res = await fetch('/update-profile', {
+try {
+await fetch('/update-profile', {
 method: 'POST',
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify({ login: me.login, displayName, avatar: me.avatar })
 });
-if (res.ok) {
-me.displayName = displayName;document.getElementById('my-name').innerText = `${me.displayName} ${me.uid}`;
+me.displayName = displayName;document.getElementById('my-name').innerText = me.displayName + " " + me.uid;
 closeProfile();
-alert("Обновлено!");
+} catch (e) {
+alert("Ошибка сохранения профиля");
 }
 }
 
+// Получение сообщений от сервера
 socket.on('renderMsg', renderMsg);
-socket.on('history', (h) => {
+socket.on('history', h => {
 document.getElementById('chat').innerHTML = '';
 h.forEach(renderMsg);
 });
