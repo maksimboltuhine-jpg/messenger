@@ -16,8 +16,9 @@ app.use(compression());
 app.use(express.json({limit: '50mb'}));
 app.use(express.static(__dirname));
 
-// ТВОЯ ССЫЛКА (Уже вставлена и готова к работе)
-const MONGO_URI = 'mongodb+srv://maksim:Gfynthf2010@cluster0.abcde.mongodb.net/messenger?retryWrites=true&w=majority';
+// !!! ВНИМАНИЕ: ЗАМЕНИ ЭТУ СТРОКУ НА СВОЮ ИЗ ATLAS !!!
+// Ошибка ENOTFOUND была из-за того, что здесь стояло "abcde"
+const MONGO_URI = 'mongodb+srv://maksim:Gfynthf2010@cluster0.XXXXX.mongodb.net/messenger?retryWrites=true&w=majority';
 
 const User = mongoose.model('User', new mongoose.Schema({
 login: { type: String, unique: true, required: true },
@@ -35,15 +36,17 @@ createdAt: { type: Date, default: Date.now, expires: 86400 }
 
 let gfsBucket;
 mongoose.connect(MONGO_URI).then(() => {
-console.log('🚀 SERVER STARTED: Base is connected');
+console.log('🚀 БАЗА ПОДКЛЮЧЕНА');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 }).catch(err => {
-console.error('❌ Ошибка подключения к базе:', err);
+console.error('❌ КРИТИЧЕСКАЯ ОШИБКА БАЗЫ:', err.message);
 });
 
 app.post('/auth', async (req, res) => {
 const { login, password, isReg } = req.body;
 try {
+if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: "База данных еще грузится..." });
+
 let user = await User.findOne({ login });
 if (isReg) {
 if (user) return res.status(400).json({ error: "Логин занят" });
@@ -53,11 +56,14 @@ user = new User({ login, password: hash, uid, displayName: login });
 await user.save();
 } else {
 if (!user || !(await bcrypt.compare(password, user.password))) {
-return res.status(400).json({ error: "Ошибка входа" });
+return res.status(400).json({ error: "Неверный логин или пароль" });
 }
 }
 res.json({ login: user.login, uid: user.uid, avatar: user.avatar, displayName: user.displayName });
-} catch (e) { res.status(500).send(); }
+} catch (e) {
+console.log(e);
+res.status(500).json({ error: "Ошибка сервера" });
+}
 });
 
 app.post('/update-profile', async (req, res) => {
@@ -79,14 +85,17 @@ res.json({ fileUrl: `/file/${ws.id}` });
 });
 
 app.get('/file/:id', (req, res) => {
+if(!gfsBucket) return res.status(500).send();
 gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
 });
 
 io.on('connection', (socket) => {
 socket.on('join', async (room) => {
 socket.join(room);
+if (mongoose.connection.readyState === 1) {
 const history = await Msg.find({ room }).sort({ createdAt: -1 }).limit(50).lean();
 socket.emit('history', history.reverse());
+}
 });
 socket.on('message', async (data) => {
 const m = new Msg(data);
