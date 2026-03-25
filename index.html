@@ -21,7 +21,6 @@ footer { background: #1a1a1a; padding: 10px; display: flex; gap: 10px; }
 </style>
 </head>
 <body>
-
 <div id="auth">
 <h2>MESSENGER</h2>
 <input type="text" id="l" placeholder="Логин">
@@ -62,7 +61,6 @@ const socket = io();
 let me = { login: '', uid: '', avatar: '', displayName: '' };
 let curRoom = 'global';
 
-// Функция авторизации (которая у тебя пропала)
 async function auth(isReg) {
 const login = document.getElementById('l').value;
 const password = document.getElementById('p').value;
@@ -73,22 +71,21 @@ try {
 const res = await fetch('/auth', {
 method: 'POST',
 headers: {'Content-Type': 'application/json'},
-body: JSON.stringify({ login, password, isReg })
+body: JSON.stringify({ login,password, isReg })
 });
 
 const data = await res.json();
-if (data.error) return alert(data.error);
+if (!res.ok || data.error) return alert("ОШИБКА: " + (data.error || "Неизвестный сбой"));
 
 me = data;
 document.getElementById('auth').style.display = 'none';
 document.getElementById('my-name').innerText = me.displayName + " " + me.uid;
 socket.emit('join', curRoom);
 } catch (err) {
-alert("Ошибка соединения с сервером. Проверь базу данных.");
+alert("Сервер вообще не ответил. Проверь логи на Render.");
 }
 }
 
-// Отрисовка сообщений
 function renderMsg(data) {
 const div = document.createElement('div');
 div.className = 'msg';
@@ -105,7 +102,6 @@ chat.appendChild(div);
 chat.scrollTop = chat.scrollHeight;
 }
 
-// Отправка сообщений и файлов
 async function send() {
 const text = document.getElementById('m').value;
 const file = document.getElementById('f').files[0];
@@ -133,7 +129,6 @@ document.getElementById('m').value = '';
 document.getElementById('f').value = '';
 }
 
-// Управление профилем
 function openProfile() {
 document.getElementById('p-overlay').style.display = 'flex';
 document.getElementById('p-av').src = me.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
@@ -141,11 +136,8 @@ document.getElementById('p-name').value = me.displayName;
 document.getElementById('p-uid').innerText = me.uid;
 }
 
-function closeProfile() {
-document.getElementById('p-overlay').style.display = 'none';
-}
+function closeProfile() { document.getElementById('p-overlay').style.display = 'none'; }
 
-// Загрузка аватарки
 async function uploadAv(input) {
 const formData = new FormData();
 formData.append('file', input.files[0]);
@@ -154,12 +146,9 @@ const res = await fetch('/upload', { method: 'POST', body: formData });
 const data = await res.json();
 document.getElementById('p-av').src = data.fileUrl;
 me.avatar = data.fileUrl;
-} catch (e) {
-alert("Ошибка загрузки аватарки");
-}
+} catch (e) { alert("Ошибка загрузки аватарки"); }
 }
 
-// Сохранение профиля
 async function saveProfile() {
 const displayName = document.getElementById('p-name').value;
 try {
@@ -168,14 +157,12 @@ method: 'POST',
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify({ login: me.login, displayName, avatar: me.avatar })
 });
-me.displayName = displayName;document.getElementById('my-name').innerText = me.displayName + " " + me.uid;
+me.displayName = displayName;
+document.getElementById('my-name').innerText = me.displayName + " " + me.uid;
 closeProfile();
-} catch (e) {
-alert("Ошибка сохранения профиля");
-}
+} catch (e) { alert("Ошибка сохранения"); }
 }
 
-// Получение сообщений от сервера
 socket.on('renderMsg', renderMsg);
 socket.on('history', h => {
 document.getElementById('chat').innerHTML = '';
