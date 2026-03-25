@@ -1,3 +1,5 @@
+Максим
+20:27
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -15,9 +17,8 @@ app.use(compression());
 app.use(express.json({limit: '50mb'}));
 app.use(express.static(__dirname));
 
-// !!! ВНИМАНИЕ !!!
-// Если тут останется "abcde", база не подключится.
-const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.abcde.mongodb.net/messenger?retryWrites=true&w=majority';
+// Я ИСПРАВИЛ ССЫЛКУ НА ТВОЮ РЕАЛЬНУЮ ИЗ СКРИНШОТА
+const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.m0m9o.mongodb.net/messenger?retryWrites=true&w=majority';
 
 const User = mongoose.model('User', new mongoose.Schema({
 login: { type: String, unique: true, required: true },
@@ -35,45 +36,28 @@ createdAt: { type: Date, default: Date.now, expires: 86400 }
 
 let gfsBucket;
 mongoose.connect(MONGO_URI).then(() => {
-console.log('🚀 БАЗА УСПЕШНО ПОДКЛЮЧЕНА');
+console.log('🚀 БАЗА ПОДКЛЮЧЕНА');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 }).catch(err => {
-console.error('❌ ОШИБКА ПОДКЛЮЧЕНИЯ К БАЗЕ:', err.message);
+console.error('❌ ОШИБКА БАЗЫ:', err.message);
 });
 
 app.post('/auth', async (req, res) => {
 const { login, password, isReg } = req.body;
 try {
-if (mongoose.connection.readyState !== 1) {
-return res.status(500).json({ error: "Нет связи с базой данных MongoDB. Проверь ссылку!" });
-}
-
+if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "Нет связи с MongoDB" });
 let user = await User.findOne({ login });
 if (isReg) {
-if (user) return res.status(400).json({ error: "Логин уже занят" });
+if (user) return res.status(400).json({ error: "Логин занят" });
 const hash = await bcrypt.hash(password, 7);
 const uid = `#${Math.floor(1000 + Math.random() * 9000)}`;
 user = new User({ login, password: hash, uid, displayName: login });
 await user.save();
 } else {
-if (!user || !(await bcrypt.compare(password, user.password))) {
-return res.status(400).json({ error: "Неверный логин или пароль" });
-}
+if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Неверный логин или пароль" });
 }
 res.json({ login: user.login, uid: user.uid, avatar: user.avatar, displayName: user.displayName });
-} catch (e) {
-console.error("🔥 ОШИБКА В /auth:", e);
-// Теперь ошибка не будет "слепой", она покажет причину
-res.status(500).json({ error: "Ошибка БД: " + e.message });
-}
-});
-
-app.post('/update-profile', async (req, res) => {
-const { login, displayName, avatar } = req.body;
-try {
-await User.findOneAndUpdate({ login }, { displayName, avatar });
-res.json({ success: true });
-} catch (e) { res.status(500).send(); }
+} catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 const upload = multer({ dest: 'uploads/' });
@@ -106,6 +90,4 @@ io.to(data.room).emit('renderMsg', data);
 });
 });
 
-server.listen(process.env.PORT || 10000, '0.0.0.0', () => {
-console.log("Сервер запущен и ждет подключений");
-});
+server.listen(process.env.PORT || 10000, '0.0.0.0');
