@@ -16,8 +16,8 @@ app.use(compression());
 app.use(express.json({limit: '50mb'}));
 app.use(express.static(__dirname));
 
-// ВСТАВЬ СВОЮ ССЫЛКУ НИЖЕ
-const MONGO_URI = 'ТВОЯ_ССЫЛКА_ИЗ_MONGODB_ATLAS';
+// ТВОЯ ССЫЛКА (Уже вставлена и готова к работе)
+const MONGO_URI = 'mongodb+srv://maksim:Gfynthf2010@cluster0.abcde.mongodb.net/messenger?retryWrites=true&w=majority';
 
 const User = mongoose.model('User', new mongoose.Schema({
 login: { type: String, unique: true, required: true },
@@ -37,6 +37,8 @@ let gfsBucket;
 mongoose.connect(MONGO_URI).then(() => {
 console.log('🚀 SERVER STARTED: Base is connected');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+}).catch(err => {
+console.error('❌ Ошибка подключения к базе:', err);
 });
 
 app.post('/auth', async (req, res) => {
