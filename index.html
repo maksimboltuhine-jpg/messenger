@@ -3,45 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Messenger v12.0 STABLE</title>
+<title>Messenger v12.1 Stable</title>
 <style>
+/* ТВОИ СТИЛИ ИЗ v11.1 */
 * { box-sizing: border-box; }
 body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
-.box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,255,136,0.1); }
-input, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; transition: 0.2s; }
-input:focus { border-color: #00ff88; }
+.box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; }
+input, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
 button { background: #00ff88; color: #000; font-weight: bold; cursor: pointer; border: none; }
-button:active { transform: scale(0.95); }
 .mode-link { text-align: center; font-size: 11px; color: #888; cursor: pointer; }
 
 #chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; border-left: 1px solid #222; border-right: 1px solid #222; }
 #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-.m { padding: 10px 15px; border-radius: 15px; background: #1a1a1a; max-width: 85%; align-self: flex-start; position: relative; border: 1px solid #222; line-height: 1.4; }
+.m { padding: 10px 15px; border-radius: 15px; background: #1a1a1a; max-width: 85%; align-self: flex-start; position: relative; border: 1px solid #222; }
 .m.me { align-self: flex-end; background: #0066ff; border: none; }
 .u { font-size: 10px; opacity: 0.6; margin-bottom: 3px; font-weight: bold; }
 .uid { color: #00ff88; }
-.del { color: #ff3b3b; cursor: pointer; float: right; margin-left: 10px; font-weight: bold; font-size: 14px; }
+.del { color: #ff3b3b; cursor: pointer; float: right; margin-left: 10px; font-weight: bold; }
 
 .bar-c { padding: 15px; background: #0a0a0a; border-top: 1px solid #222; }
 .bar { display: flex; gap: 10px; align-items: center; }
 #in { flex: 1; }
-img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
+img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
 #f { display: none; }
 .p-b { height: 3px; background: #00ff88; width: 0%; transition: 0.2s; margin-bottom: 5px; }
-.status-dot { font-size: 10px; text-align: center; color: #ff3b3b; }
 </style>
 </head>
 <body>
 <div id="auth">
 <div class="box">
 <h2 id="a-t" style="text-align:center; color:#00ff88; margin:0">ВХОД</h2>
-<div id="db-status" class="status-dot">База данных просыпается...</div>
+<div id="status" style="font-size:10px; color:#555; text-align:center;">Проверка системы...</div>
 <input type="text" id="l" placeholder="Логин">
 <input type="password" id="p" placeholder="Пароль">
 <button onclick="hAuth()" id="a-b">ВОЙТИ</button>
 <div class="mode-link" onclick="tMode()" id="m-t">Нет аккаунта? Регистрация</div>
-<div style="text-align:center; font-size:9px; color:#333; margin-top:10px;">MESSENGER v12.0 STABLE</div>
 </div>
 </div>
 
@@ -51,7 +48,7 @@ img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
 <div id="pb" class="p-b"></div>
 <div class="bar">
 <label for="f" style="cursor:pointer; font-size: 20px;">📎</label>
-<input type="file" id="f" onchange="document.getElementById('in').placeholder='Файл выбран: ' + this.files[0].name">
+<input type="file" id="f" onchange="document.getElementById('in').placeholder='Файл: ' + this.files[0].name">
 <input type="text" id="in" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
 <button onclick="send()">➤</button>
 </div>
@@ -74,7 +71,7 @@ document.getElementById('m-t').innerText = isR ? "Есть аккаунт? Во�
 
 async function hAuth() {
 const login = document.getElementById('l').value, password = document.getElementById('p').value;
-if(!login || !password) return alert("Заполни поля!");
+if(!login || !password) return alert("Заполни всё!");
 
 try {
 const res = await fetch('/auth', {
@@ -83,12 +80,13 @@ headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify({ login, password, isReg: isR })
 });
 const data = await res.json();
-if(data.error) return alert(data.error);
-my = data;
+
+if(res.status === 503) return alert("База данных еще спит. Подожди 10 сек.");
+if(data.error) return alert(data.error);my = data;
 localStorage.setItem('msgr_v12_user', JSON.stringify(my));
 loginSuccess();
 } catch(e) {
-alert("Ошибка! Скорее всего база еще спит. Подожди 10 сек.");
+alert("Ошибка подключения. Попробуй позже.");
 }
 }
 
@@ -114,13 +112,16 @@ let fD = null;
 if(fInp.files[0]) {
 const fd = new FormData();
 fd.append('file', fInp.files[0]);
-fD = await new Promise(r => {
+try {
+fD = await new Promise((res, rej) => {
 const x = new XMLHttpRequest();
 x.open('POST', '/upload');
 x.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
-x.onload = () => r(JSON.parse(x.responseText));
+x.onload = () => x.status === 200 ? res(JSON.parse(x.responseText)) : rej();
+x.onerror = rej;
 x.send(fd);
 });
+} catch(e) { alert("Файл не улетел — база спит"); }
 pb.style.width = '0%';
 fInp.value = '';
 }
@@ -145,15 +146,6 @@ h += `<a href="${m.fileUrl}" target="_blank" style="color:#00ff88; display:block
 }
 d.innerHTML = h; area.appendChild(d); area.scrollTop = area.scrollHeight;
 }
-
-// Проверка статуса базы (визуально)
-setInterval(async () => {
-try {
-const res = await fetch('/');
-if(res.ok) document.getElementById('db-status').style.color = '#00ff88';
-document.getElementById('db-status').innerText = 'Система готова к работе';
-} catch(e) {}
-}, 5000);
 </script>
 </body>
 </html>
