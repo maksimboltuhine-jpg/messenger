@@ -1,6 +1,6 @@
 {
-  "name": "msgr-v24-full",
-  "version": "24.0.0",
+  "name": "msgr-ultimate-v25-5",
+  "version": "25.5.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

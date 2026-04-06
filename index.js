@@ -7,6 +7,7 @@ const multer = require('multer');
 const compression = require('compression');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,10 +19,10 @@ app.use(express.static(__dirname));
 
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 
-// Схемы данных
+// СХЕМЫ
 const User = mongoose.model('User', new mongoose.Schema({
-    login: { type: String, unique: true },
-    password: { type: String },
+    login: { type: String, unique: true, required: true },
+    password: { type: String, required: true },
     uid: String
 }));
 
@@ -33,15 +34,15 @@ const Msg = mongoose.model('Msg', new mongoose.Schema({
 
 let gfsBucket;
 mongoose.connect(MONGO_URI).then(() => {
-    console.log('✅ MongoDB Connected');
+    console.log('✅ DATABASE CONNECTED');
     gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-});
+}).catch(err => console.error('DB Connection Error:', err));
 
-// Настройка PeerJS (важно: путь '/')
+// PEER SERVER
 const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
-// Авторизация
+// АВТОРИЗАЦИЯ
 app.post('/auth', async (req, res) => {
     const { login, password, isReg } = req.body;
     try {
@@ -53,16 +54,18 @@ app.post('/auth', async (req, res) => {
             user = new User({ login, password: hash, uid });
             await user.save();
         } else {
-            if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Неверный логин или пароль" });
+            if (!user || !(await bcrypt.compare(password, user.password))) {
+                return res.status(400).json({ error: "Неверный логин или пароль" });
+            }
         }
         res.json({ login: user.login, uid: user.uid });
-    } catch (e) { res.status(500).json({ error: "Ошибка базы данных" }); }
+    } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
-// Загрузка файлов
+// ФАЙЛЫ
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', upload.single('file'), (req, res) => {
-    if (!gfsBucket || !req.file) return res.status(500).json({ error: 'File error' });
+    if (!gfsBucket || !req.file) return res.status(500).json({ error: 'Ошибка файла' });
     const writeStream = gfsBucket.openUploadStream(req.file.originalname, { contentType: req.file.mimetype });
     fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
         fs.promises.unlink(req.file.path);
@@ -73,21 +76,22 @@ app.post('/upload', upload.single('file'), (req, res) => {
 app.get('/file/:id', (req, res) => {
     try {
         gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
-    } catch (e) { res.status(404).send('Файл не найден'); }
+    } catch (e) { res.status(404).send('Not found'); }
 });
 
-// Сокеты
+// СОКЕТЫ
 io.on('connection', (socket) => {
     socket.on('join', async (room) => {
         socket.join(room);
-        const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50);
+        const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean();
         socket.emit('history', history);
     });
+
     socket.on('message', async (data) => {
-        const saved = await new Msg(data).save();
-        io.to(data.room).emit('renderMsg', saved);
+        const savedMsg = await new Msg(data).save();
+        io.to(data.room).emit('renderMsg', savedMsg);
     });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`🚀 Сервер на порту ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 СЕРВЕР ГОТОВ: ПОРТ ${PORT}`));
