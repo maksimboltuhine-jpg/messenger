@@ -144,8 +144,18 @@
             document.getElementById('local-v').srcObject = localStream;
             document.getElementById('call-ui').style.display = 'flex';
             const call = peer.call(targetId, localStream);
-            if(call) setupCallEvents(call);
-        } catch(e) { alert("Нет доступа к камере/микрофону"); }
+            
+            // ИСПРАВЛЕНИЕ ОШИБКИ F12: Проверяем, существует ли соединение (в сети ли юзер)
+            if (call) {
+                setupCallEvents(call);
+            } else {
+                alert("Абонент не в сети или недоступен.");
+                endCall();
+            }
+        } catch(e) { 
+            alert("Нет доступа к камере/микрофону"); 
+            endCall();
+        }
     }
 
     function setupCallEvents(call) {
@@ -154,20 +164,24 @@
             document.getElementById('remote-v').srcObject = remoteStream;
         });
         call.on('close', endCall);
+        call.on('error', () => {
+
+
+alert("Связь прервалась.");
+            endCall();
+        });
     }
 
     function endCall() {
         if(currentCall) currentCall.close();
         if(localStream) localStream.getTracks().forEach(t => t.stop());
         document.getElementById('call-ui').style.display = 'none';
+        document.getElementById('remote-v').srcObject = null;
     }
 
     // --- ЛОГИКА ЧАТА ---
     socket.on('history', list => {
-        document.getElementById('msgs').i
-
-
-nnerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
         list.forEach(add);
     });
 
@@ -207,7 +221,6 @@ nnerHTML = '';
         const area = document.getElementById('msgs'), d = document.createElement('div');
         d.className = `m ${m.uid === my.uid ? 'me' : ''}`; d.id = m._id;
         
-        // Красивый вывод: прячем 'id' и добавляем решетку для дизайна
         let displayUid = m.uid.replace('id', '#');
         
         let h = `<div class="u"><div>${m.user} <span class="uid">${displayUid}</span></div>`;
