@@ -13,7 +13,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
-// Интеграция PeerJS сервера
+// Интеграция PeerJS сервера по пути /peerjs
 const peerServer = ExpressPeerServer(server, {
     debug: true,
     path: '/'
@@ -26,7 +26,7 @@ app.use('/peerjs', peerServer);
 
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 
-// Схемы данных
+// СХЕМЫ
 const User = mongoose.model('User', new mongoose.Schema({
     login: { type: String, unique: true, required: true },
     password: { type: String, required: true },
@@ -44,7 +44,7 @@ let gfsBucket;
 const connectDB = async () => {
     try {
         await mongoose.connect(MONGO_URI);
-        console.log('🚀 DATABASE & PEER ONLINE');
+        console.log('🚀 SYSTEM READY: DB & PEER ONLINE');
         gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
     } catch (err) {
         console.error('❌ DB Fail, retrying...', err.message);
@@ -87,6 +87,8 @@ app.get('/file/:id', (req, res) => {
     gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
 });
 
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
 io.on('connection', (socket) => {
     socket.on('join', async (room) => {
         socket.join(room);
@@ -101,4 +103,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`Server on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server started on port ${PORT}`));
