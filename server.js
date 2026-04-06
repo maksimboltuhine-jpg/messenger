@@ -12,32 +12,24 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// 1. ПИР-СЕРВЕР (Звонки)
+// 1. Инициализация PeerJS сервера (для звонков)
 const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
-// 2. СОКЕТЫ (Чат)
+// 2. Настройки Socket.io
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
-// 3. НАСТРОЙКИ СЕРВЕРА
 app.use(compression());
 app.use(express.json({limit: '100mb'}));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
-// 4. БАЗА ДАННЫХ MONGODB (Твоя ссылка)
+// ТВОЯ МОНГО
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
-let gfsBucket;
 
-mongoose.connect(MONGO_URI).then(() => {
-    console.log('🚀 DATABASE ONLINE & STABLE');
-    gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-}).catch(err => console.error('❌ DB Error:', err));
-
-// СХЕМЫ
 const User = mongoose.model('User', new mongoose.Schema({
     login: { type: String, unique: true, required: true },
     password: { type: String, required: true },
-    uid: { type: String, required: true }
+    uid: String
 }));
 
 const Msg = mongoose.model('Msg', new mongoose.Schema({
@@ -46,7 +38,14 @@ const Msg = mongoose.model('Msg', new mongoose.Schema({
     createdAt: { type: Date, default: Date.now, expires: 86400 }
 }));
 
-// 5. АВТОРИЗАЦИЯ (Генерируем чистые UID для PeerJS)
+let gfsBucket;
+
+mongoose.connect(MONGO_URI).then(() => {
+    console.log('🚀 DATABASE ONLINE');
+    gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+}).catch(err => console.error('❌ DB Fail:', err));
+
+// АВТОРИЗАЦИЯ
 app.post('/auth', async (req, res) => {
     const { login, password, isReg } = req.body;
     try {
@@ -54,8 +53,7 @@ app.post('/auth', async (req, res) => {
         if (isReg) {
             if (user) return res.status(400).json({ error: "Логин занят" });
             const hash = await bcrypt.hash(password, 7);
-            // Чистый ID без символов для PeerJS
-            const uid = 'id' + Math.random().toString(36).substr(2, 9);
+            const uid = 'id' + Math.floor(1000 + Math.random() * 9000); // PeerJS любит буквы в начале
             user = await User.create({ login, password: hash, uid });
         } else {
             if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -66,7 +64,7 @@ app.post('/auth', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
-// 6. ФАЙЛЫ (Upload/Download)
+// ФАЙЛЫ
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', upload.single('file'), (req, res) => {
     if (!gfsBucket || !req.file) return res.status(500).send('Ошибка');
@@ -87,7 +85,7 @@ app.get('/file/:id', (req, res) => {
     } catch(e) { res.status(404).send("Файл не найден"); }
 });
 
-// 7. ЛОГИКА СОКЕТОВ
+// СОКЕТЫ
 io.on('connection', (socket) => {
     socket.on('join', async (room) => {
         socket.join(room);
@@ -100,10 +98,7 @@ io.on('connection', (socket) => {
         io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
     });
 
-    socket.on('deleteMsg', asy
-
-
-nc ({ id, room, fileId }) => {
+    socket.on('deleteMsg', async ({ id, room, fileId }) => {
         await Msg.findByIdAndDelete(id);
         if (fileId && gfsBucket) {
             try { await gfsBucket.delete(new mongoose.Types.ObjectId(fileId)); } catch(e) {}
@@ -113,4 +108,4 @@ nc ({ id, room, fileId }) => {
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`🚀 MONOLITH UP ON PORT ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 Monolith started on port ${PORT}`));

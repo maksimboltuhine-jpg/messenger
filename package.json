@@ -1,7 +1,7 @@
 {
-  "name": "ultimate-messenger-v12-fixed",
+  "name": "messenger-v12-monolith",
   "version": "12.2.0",
-  "description": "Stable Monolith: Chat + Files + PeerJS",
+  "description": "Stable version with Video Calls",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
