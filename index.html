@@ -3,62 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MSGR v27 FINAL</title>
+    <title>MSGR v28</title>
     <style>
         :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; --panel: #111; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* Экран логина */
         #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 10000; }
         .box { background: var(--panel); padding: 25px; border-radius: 20px; border: 1px solid #333; display: flex; flex-direction: column; gap: 10px; width: 85%; max-width: 300px; }
-        
-        input, button { padding: 12px; border-radius: 10px; border: 1px solid #333; background: #000; color: #fff; outline: none; }
+        input, button { padding: 12px; border-radius: 10px; border: 1px solid #333; background: #000; color: #fff; }
         button { background: var(--green); color: #000; font-weight: bold; border: none; cursor: pointer; }
-
-        /* Интерфейс чата */
         #chat-ui { display: none; flex-direction: column; height: 100%; }
-        #header { padding: 15px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        #header { padding: 10px; background: #111; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
         #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .msg { background: #1a1a1a; padding: 10px; border-radius: 15px; max-width: 85%; align-self: flex-start; }
         .msg.me { align-self: flex-end; background: #0044aa; }
-
-        /* Экран звонка */
         #call-ui { display: none; position: fixed; inset: 0; background: #000; z-index: 5000; }
         video { width: 100%; height: 100%; object-fit: contain; }
-        #lv { position: absolute; top: 20px; right: 20px; width: 100px; height: 140px; border: 2px solid var(--green); border-radius: 12px; object-fit: cover; z-index: 10; }
-        .hangup { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--red); width: 60px; height: 60px; border-radius: 50%; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+        #lv { position: absolute; top: 15px; right: 15px; width: 90px; height: 120px; border: 2px solid var(--green); border-radius: 10px; object-fit: cover; z-index: 10; }
+        .hang { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--red); width: 60px; height: 60px; border-radius: 50%; border: none; color: #fff; font-size: 24px; }
     </style>
 </head>
 <body>
 
 <div id="auth">
     <div class="box">
-        <h2 style="text-align:center; margin-top:0">MSGR v27</h2>
-        <input type="text" id="login" placeholder="Логин">
-        <input type="password" id="pass" placeholder="Пароль">
-        <button onclick="doAuth(false)">ВОЙТИ</button>
-        <button onclick="doAuth(true)" style="background:#222; color:#fff">РЕГИСТРАЦИЯ</button>
+        <h2 style="text-align:center; margin:0">MSGR v28</h2>
+        <input type="text" id="l" placeholder="Логин">
+        <input type="password" id="p" placeholder="Пароль">
+        <button onclick="startAuth(false)">ВОЙТИ</button>
+        <button onclick="startAuth(true)" style="background:#222; color:#fff">РЕГИСТРАЦИЯ</button>
     </div>
 </div>
 
 <div id="chat-ui">
     <div id="header">
-        <b id="my-info" style="color:var(--green)"></b>
-        <button onclick="makeCall(prompt('Введите ID друга (цифры):'))" style="padding: 8px 15px;">📞 Звонок</button>
+        <b id="info" style="color:var(--green)"></b>
+        <button onclick="doCall(prompt('ID друга:'))">📞 Звонок</button>
     </div>
     <div id="msgs"></div>
-    <div style="padding:10px; display:flex; gap:10px; background:var(--panel)">
-        <input type="file" id="fi" style="display:none" onchange="sendMsg()">
-        <button onclick="document.getElementById('fi').click()" style="width:45px">📎</button>
-        <input type="text" id="mi" style="flex:1" placeholder="Сообщение...">
-        <button onclick="sendMsg()" style="width:55px">➤</button>
+    <div style="padding:10px; display:flex; gap:8px; background:#111">
+        <input type="file" id="f" style="display:none" onchange="send()">
+        <button onclick="document.getElementById('f').click()">📎</button>
+        <input type="text" id="m" style="flex:1" placeholder="Сообщение...">
+        <button onclick="send()">➤</button>
     </div>
 </div>
 
 <div id="call-ui">
     <video id="rv" autoplay playsinline></video>
     <video id="lv" autoplay playsinline muted></video>
-    <button class="hangup" onclick="location.reload()">❌</button>
+    <button class="hang" onclick="location.reload()">❌</button>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -66,11 +59,9 @@
 <script>
     let socket = io(), peer, my, localStream;
 
-    // ФУНКЦИЯ АВТОРИЗАЦИИ
-    async function doAuth(isReg) {
-        const login = document.getElementById('login').value;
-        const password = document.getElementById('pass').value;
-        if(!login || !password) return alert("Заполни поля!");
+    async function startAuth(isReg) {
+        const login = document.getElementById('l').value, password = document.getElementById('p').value;
+        if(!login || !password) return alert("Заполни поля");
 
         const res = await fetch('/auth', { 
             method: 'POST', 
@@ -81,54 +72,57 @@
         if(data.error) return alert(data.error);
 
         my = data;
-        document.getElementById('auth').style.display = 'none';
-        document.getElementById('chat-ui').style.display = 'flex';
-        document.getElementById('my-info').innerText = `${my.login} (#${my.uid})`;
+        document.getElementById('auth').style.display = 'none';document.getElementById('chat-ui').style.display = 'flex';
+        document.getElementById('info').innerText = `${my.login} (#${my.uid})`;
 
-        // Инициализация PeerJS
+        // Инициализация PeerJS с расширенными STUN
         peer = new Peer(my.uid, {
             host: location.hostname,
             port: location.port || 443,
             path: '/peerjs',
             secure: true,
-            config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] }
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
+                ]
+            }
         });
 
         peer.on('call', async call => {
-            if(confirm("Входящий звонок! Ответить?")) {
+            if(confirm("Входящий вызов!")) {
                 localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
                 call.answer(localStream);
-                startStreamUI(call);
+                showCall(call);
             }
         });
 
         socket.emit('join', 'Main');
     }
 
-    // ФУНКЦИЯ ЗВОНКА
-    async function makeCall(id) {
+    async function doCall(id) {
         if(!id) return;
         const target = id.replace('#', '').trim();
         try {
             localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
             const call = peer.call(target, localStream);
-            if(!call) return alert("Ошибка соединения");
-            startStreamUI(call);
-        } catch(e) { alert("Камера недоступна!"); }
+            if(call) showCall(call);
+        } catch(e) { alert("Камера недоступна"); }
     }
 
-    function startStreamUI(call) {
+    function showCall(call) {
         document.getElementById('call-ui').style.display = 'block';
         document.getElementById('lv').srcObject = localStream;
         call.on('stream', s => {
             const rv = document.getElementById('rv');
             rv.srcObject = s;
-            rv.play().catch(e => console.error(e));
+            rv.play();
         });
     }
 
-    async function sendMsg() {
-        const m = document.getElementById('mi'), f = document.getElementById('fi');
+    async function send() {
+        const m = document.getElementById('m'), f = document.getElementById('f');
         let fData = null;
         if(f.files[0]) {
             const fd = new FormData(); fd.append('file', f.files[0]);
@@ -147,15 +141,15 @@
     function render(m) {
         const d = document.createElement('div');
         d.className = `msg ${m.uid === my.uid ? 'me' : ''}`;
-        let h = `<b>#${m.uid} ${m.user}</b>
+        let html = `<b>#${m.uid} ${m.user}</b>
 ${m.text || ''}`;
         if(m.fileUrl) {
-            if(m.fileType?.startsWith('image/')) h += `
+            if(m.fileType?.startsWith('image/')) html += `
 <img src="${m.fileUrl}" style="max-width:100%; border-radius:10px; margin-top:5px">`;
-            h += `
+            html += `
 <a href="${m.fileUrl}" style="color:var(--green)" download="${m.fileName}">💾 ${m.fileName}</a>`;
         }
-        d.innerHTML = h;
+        d.innerHTML = html;
         document.getElementById('msgs').appendChild(d);
         document.getElementById('msgs').scrollTop = 99999;
     }

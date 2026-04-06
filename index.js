@@ -30,10 +30,16 @@ const Msg = mongoose.model('Msg', new mongoose.Schema({
 
 let gfsBucket;
 mongoose.connect(MONGO_URI).then(() => {
+    console.log('✅ DB Connected');
     gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 });
 
-const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
+// Настройка PeerJS с учетом прокси Render
+const peerServer = ExpressPeerServer(server, { 
+    debug: true, 
+    path: '/',
+    proxied: true 
+});
 app.use('/peerjs', peerServer);
 
 app.post('/auth', async (req, res) => {
@@ -41,13 +47,13 @@ app.post('/auth', async (req, res) => {
     try {
         let user = await User.findOne({ login });
         if (isReg) {
-            if (user) return res.status(400).json({ error: "Занято" });
+            if (user) return res.status(400).json({ error: "Логин занят" });
             const hash = await bcrypt.hash(password, 7);
-            const uid = Math.floor(1000 + Math.random() * 9999).toString();
+            const uid = Math.floor(1000 + Math.random() * 9000).toString();
             user = new User({ login, password: hash, uid });
             await user.save();
         } else {
-            if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Ошибка" });
+            if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Ошибка входа" });
         }
         res.json({ login: user.login, uid: user.uid });
     } catch (e) { res.status(500).json({ error: "Ошибка БД" }); }
@@ -55,7 +61,7 @@ app.post('/auth', async (req, res) => {
 
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', upload.single('file'), (req, res) => {
-    if (!gfsBucket || !req.file) return res.status(500).send('Error');
+    if (!gfsBucket || !req.file) return res.status(500).send('File Error');
     const writeStream = gfsBucket.openUploadStream(req.file.originalname, { contentType: req.file.mimetype });
     fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
         fs.promises.unlink(req.file.path);
@@ -64,7 +70,9 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 app.get('/file/:id', (req, res) => {
-    try { gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res); } catch(e) {}
+    try {
+        gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
+    } catch (e) { res.status(404).send('Not Found'); }
 });
 
 io.on('connection', (socket) => {
@@ -79,4 +87,5 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(process.env.PORT || 10000, '0.0.0.0');
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 v28 running on port ${PORT}`));
