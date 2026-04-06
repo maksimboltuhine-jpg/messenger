@@ -1,7 +1,7 @@
 {
-  "name": "ultimate-system-v1",
-  "version": "1.0.0",
-  "description": "Chat + PeerJS Calls",
+  "name": "ultimate-messenger-v12-fixed",
+  "version": "12.2.0",
+  "description": "Stable Monolith: Chat + Files + PeerJS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
