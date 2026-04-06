@@ -3,199 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MSGR v36 FINAL</title>
+    <title>CALL v23 ULTIMATE</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; --panel: #111; }
+        :root { --green: #00ff88; --red: #ff3b3b; --bg: #0a0a0a; --panel: #161616; }
+        * { box-sizing: border-box; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #scr-auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        #scr-chat { display: none; flex-direction: column; height: 100%; }
-        #scr-call { display: none; position: fixed; inset: 0; background: #000; z-index: 5000; }
-        .box { background: var(--panel); padding: 30px; border-radius: 20px; border: 1px solid #333; width: 280px; display: flex; flex-direction: column; gap: 10px; }
-        input, button { padding: 12px; border-radius: 10px; border: 1px solid #333; background: #080808; color: #fff; outline: none; }
-        button { background: var(--green); color: #000; font-weight: bold; border: none; cursor: pointer; }
-        header { padding: 15px; background: #111; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
-        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .m { background: #1a1a1a; padding: 10px; border-radius: 15px; max-width: 80%; align-self: flex-start; word-wrap: break-word; }
-        .m.me { align-self: flex-end; background: #0055ff; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-        #local-v { position: absolute; top: 10px; right: 10px; width: 80px; height: 120px; border: 2px solid var(--green); border-radius: 10px; object-fit: cover; }
-        .controls { position: absolute; bottom: 30px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; }
-        .c-btn { width: 50px; height: 50px; border-radius: 50%; border: none; font-size: 18px; cursor: pointer; background: #333; color: #fff; }
-        .c-btn.on { background: var(--green); color: #000; }
-        .c-btn.hang { background: var(--red); color: #fff; }
+
+        /* Авторизация */
+        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .box { background: #111; padding: 30px; border-radius: 24px; width: 340px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; text-align: center; }
+        input, button { padding: 15px; border-radius: 14px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; font-size: 16px; }
+        button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
+
+        /* Интерфейс чата */
+        #chat { display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 600px; margin: 0 auto; border-left: 1px solid #222; border-right: 1px solid #222; }
+        .head { padding: 15px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
+        
+        /* Сообщения */
+        .m { max-width: 85%; padding: 12px; border-radius: 18px; background: #222; position: relative; animation: fadeIn 0.3s ease; }
+        .m.me { align-self: flex-end; background: #2a2a2a; border-bottom-right-radius: 4px; }
+        .u { font-size: 12px; color: var(--green); margin-bottom: 4px; font-weight: bold; }
+        .uid { color: #666; font-weight: normal; margin-left: 5px; }
+        .txt { line-height: 1.4; word-break: break-word; }
+        .file-link { display: block; margin-top: 8px; color: var(--green); text-decoration: none; font-size: 13px; border: 1px dashed #444; padding: 8px; border-radius: 8px; }
+
+        /* Видео контейнер */
+        #video-grid { display: none; position: fixed; inset: 0; background: #000; z-index: 1500; grid-template-rows: 1fr 1fr; gap: 10px; padding: 10px; }
+        video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; background: #111; }
+        #local-video { border: 2px solid var(--green); }
+        .call-tools { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; }
+        .btn-round { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; border: none; }
+        .hangup { background: var(--red); color: white; }
+
+        /* Панель ввода */
+        .bar { padding: 15px; background: var(--panel); display: flex; gap: 10px; align-items: center; border-top: 1px solid #333; }
+        #txt { flex: 1; background: #0a0a0a; border: 1px solid #333; }
+        .btn-call { background: var(--green); color: #000; width: 45px; height: 45px; border-radius: 12px; font-size: 20px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-<div id="scr-auth">
-    <div class="box">
-        <h3 style="text-align:center">Messenger v36</h3>
-        <input type="text" id="ai-l" placeholder="Логин">
-        <input type="password" id="ai-p" placeholder="Пароль">
-        <button id="btn-login">ВОЙТИ</button>
-        <button id="btn-reg" style="background:#222; color:#fff">РЕГИСТРАЦИЯ</button>
+    <div id="auth">
+        <div class="box">
+            <h2 id="auth-title">Вход</h2>
+            <input type="text" id="logInp" placeholder="Логин">
+            <input type="password" id="passInp" placeholder="Пароль">
+            <button onclick="auth()">Войти</button>
+            <p style="font-size: 13px; color: #888; cursor: pointer;" onclick="toggleAuthMode()" id="auth-mode">Нет аккаунта? Регистрация</p>
+        </div>
     </div>
-</div>
 
-<div id="scr-chat">
-    <header>
-        <div><b id="u-name"></b>
-<small id="u-stat">Ожидание...</small></div>
-        <button id="btn-call-start">📞 ЗВОНОК</button>
-    </header>
-    <div id="msgs"></div>
-    <div style="padding:10px; display:flex; gap:5px; background:#111">
-        <input type="text" id="m-in" style="flex:1" placeholder="Текст...">
-        <button id="btn-send">➤</button>
+    <div id="video-grid">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video" autoplay muted playsinline></video>
+        <div class="call-tools">
+            <button class="btn-round hangup" onclick="endCall()">📞</button>
+        </div>
     </div>
-</div>
 
-<div id="scr-call">
-    <video id="remote-v" autoplay playsinline></video>
-    <video id="local-v" autoplay playsinline muted></video>
-    <div class="controls">
-        <button id="b-cam" class="c-btn on">📷</button>
-        <button id="b-mic" class="c-btn on">🎤</button>
-        <button id="b-hang" class="c-btn hang">❌</button>
+    <div id="chat">
+        <div class="head">
+            <div><b>CALL v23</b> <span id="my-id" style="color:var(--green)"></span></div>
+            <button onclick="startCall()" style="padding: 5px 10px; font-size: 12px;">Звонок</button>
+        </div>
+        <div id="msgs"></div>
+        <div class="bar">
+            <input type="file" id="fInp" hidden onchange="sendFile()">
+            <button onclick="document.getElementById('fInp').click()" style="background:#333; color:#fff">📎</button>
+            <input type="text" id="txt" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') send()">
+            <button onclick="send()">➤</button>
+        </div>
     </div>
-</div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-<script>
-    // Используем стандартные функции, чтобы избежать SyntaxError
-    var socket = io();
-    var peer, my, stream, currentCall;
-    var cam = true, mic = true;
+    <script>
+        const socket = io();
+        let my = null;
+        let isReg = false;
+        let myPeer, localStream, currentCall;
 
-    // Привязка событий через JS, а не через onclick в HTML (так надежнее)
-    document.getElementById('btn-login').onclick = function() { doAuth(false); };
-    document.getElementById('btn-reg').onclick = function() { doAuth(true); };
-    document.getElementById('btn-send').onclick = function() { send(); };
-    document.getElementById('btn-call-start').onclick = function() { startCall(); };
-    document.getElementById('b-cam').onclick = function() { tglCam(); };
-    document.getElementById('b-mic').onclick = function() { tglMic(); };
-    document.getElementById('b-hang').onclick = function() { location.reload(); };
-    
-    document.getElementById('m-in').onkeypress = function(e) {
-        if(e.key === 'Enter') send();
-    };
-
-    window.onload = function() {
-        var s = localStorage.getItem('msgr_v36');
-        if(s) {
-            my = JSON.parse(s);
-            initApp();
+        function toggleAuthMode() {
+            isReg = !isReg;
+            document.getElementById('auth-title').innerText = isReg ? 'Регистрация' : 'Вход';
+            document.getElementById('auth-mode').innerText = isReg ? 'Уже есть аккаунт? Вход' : 'Нет аккаунта? Регистрация';
         }
-    };
 
-    function doAuth(reg) {
-        var l = document.getElementById('ai-l').value;
-        var p = document.getElementById('ai-p').value;
-        if(!l || !p) return alert("Заполни поля!");
+        async function auth() {
+            const login = document.getElementById('logInp').value;
+            const password = document.getElementById('passInp').value;
+            if(!login || !password) return alert("Заполни поля");
 
-        fetch('/auth', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({login: l, password: p, isReg: reg})
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
+            const res = await fetch('/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, password, isReg })
+            });
+            const data = await res.json();
+
             if(data.error) return alert(data.error);
+
             my = data;
-            localStorage.setItem('msgr_v36', JSON.stringify(my));
-            initApp();
-        })
-        .catch(function() { alert("Ошибка сервера. Проверь Render!"); });
-    }
-
-    function initApp() {
-        document.getElementById('scr-auth').style.display = 'none';
-        document.getElementById('scr-chat').style.display = 'flex';
-        document.getElementById('u-name').innerText = my.login + ' (#' + my.uid + ')';
-
-        // КРИТИЧНО: Убираем ВСЕ нецифровые символы из ID для PeerJS
-        var cleanId = my.uid.toString().replace(/\D/g, '');
-        peer = new Peer('msgr-' + cleanId);
-
-        peer.on('open', function() {
-            document.getElementById('u-stat').innerText = 'В сети';
-        });
-
-        peer.on('call', function(c) {
-            if(confirm("Входящий вызов!")) {
-                navigator.mediaDevices.getUserMedia({video: true, audio: true})
-                .then(function(s) {
-                    stream = s;
-                    c.answer(s);
-                    runCall(c);
-                });
-            }
-        });
-
-        socket.emit('join', 'Main');
-    }
-
-    function startCall() {
-        var id = prompt('Введите ID (только цифры):');
-        if(!id) return;
-        var cleanTarget = id.replace(/\D/g, '');
-
-        navigator.mediaDevices.getUserMedia({video: true, audio: true})
-        .then(function(s) {
-            stream = s;
-            var c = peer.call('msgr-' + cleanTarget, s);
-            runCall(c);
-        })
-        .catch(function() { alert("Нет доступа к камере!"); });
-    }
-
-    function runCall(c) {
-        currentCall = c;
-        document.getElementById('scr-call').style.display = 'block';
-        document.getElementById('local-v').srcObject = stream;
-        c.on('stream', function(s) {
-            document.getElementById('remote-v').srcObject = s;
-        });
-    }
-
-    function tglCam() {
-        cam = !cam;
-        stream.getVideoTracks()[0].enabled = cam;
-        document.getElementById('b-cam').className = 'c-btn ' + (cam ? 'on' : '');
-    }
-
-    function tglMic() {
-        mic = !mic;
-        stream.getAudioTracks()[0].enabled = mic;
-        document.getElementById('b-mic').className = 'c-btn ' + (mic ? 'on' : '');
-    }
-
-    function send() {
-        var i = document.getElementById('m-in');
-        if(i.value.trim()) {
-            socket.emit('message', { user: my.login, uid: my.uid, text: i.value, room: 'Main' });
-            i.value = '';
+            document.getElementById('auth').style.display = 'none';
+            document.getElementById('chat').style.display = 'flex';
+            document.getElementById('my-id').innerText = `${my.login} ${my.uid}`;
+            
+            socket.emit('join', 'Main');
+            initPeer(my.login);
         }
-    }
 
-    socket.on('history', function(h) {
-        document.getElementById('msgs').innerHTML = '';
-        h.forEach(addMsg);
-    });
+        // ПИР-ТО-ПИР ЛОГИКА
+        function initPeer(login) {
+            const cleanId = login.replace(/[^a-zA-Z0-9]/g, '');
+            myPeer = new Peer(cleanId, {
+                host: '/',
+                path: '/peerjs',
+                port: location.port || (location.protocol === 'https:' ? 443 : 80),
+                secure: location.protocol === 'https:'
+            });
 
-    socket.on('renderMsg', addMsg);
+            myPeer.on('call', call => {
+                if(confirm("Входящий вызов! Ответить?")) {
+                    navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(stream => {
+                        localStream = stream;
+                        showVideo(true);
+                        document.getElementById('local-video').srcObject = stream;
+                        call.answer(stream);
+                        call.on('stream', userStream => {
+                            document.getElementById('remote-video').srcObject = userStream;
+                        });
+                        currentCall = call;
+                    });
+                }
+            });
+        }
 
-    function addMsg(m) {
-        var d = document.createElement('div');
-        d.className = 'm ' + (m.uid === my.uid ? 'me' : '');
-        d.innerHTML = '<b>#' + m.uid + ' ' + m.user + '</b>
-' + m.text;
+        function startCall() {
+            const target = prompt("Кому звоним? (Введите логин)");
+            if(!target) return;
+            const cleanTarget = target.replace(/[^a-zA-Z0-9]/g, '');
+
+            navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(stream => {
+                localStream = stream;
+                showVideo(true);
+                document.getElementById('local-video').srcObject = stream;
+                const c
 
 
-document.getElementById('msgs').appendChild(d);
-        document.getElementById('msgs').scrollTop = 9999;
-    }
-</script>
+all = myPeer.call(cleanTarget, stream);
+                call.on('stream', userStream => {
+                    document.getElementById('remote-video').srcObject = userStream;
+                });
+                currentCall = call;
+            });
+        }
+
+        function endCall() {
+            if(currentCall) currentCall.close();
+            if(localStream) localStream.getTracks().forEach(t => t.stop());
+            showVideo(false);
+        }
+
+        function showVideo(visible) {
+            document.getElementById('video-grid').style.display = visible ? 'grid' : 'none';
+        }
+
+        // ЧАТ ЛОГИКА
+        function send() {
+            const txt = document.getElementById('txt');
+            if(!txt.value) return;
+            socket.emit('message', { user: my.login, uid: my.uid, text: txt.value, room: 'Main' });
+            txt.value = '';
+        }
+
+        async function sendFile() {
+            const file = document.getElementById('fInp').files[0];
+            if(!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            
+            const res = await fetch('/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            
+            socket.emit('message', { 
+                user: my.login, uid: my.uid, text: `Файл: ${data.fileName}`, 
+                room: 'Main', fileUrl: data.fileUrl, fileName: data.fileName 
+            });
+        }
+
+        socket.on('renderMsg', m => add(m));
+        socket.on('history', h => {
+            document.getElementById('msgs').innerHTML = '';
+            h.forEach(m => add(m));
+        });
+
+        function add(m) {
+            const area = document.getElementById('msgs');
+            const d = document.createElement('div');
+            d.className = `m ${m.uid === my.uid ? 'me' : ''}`;
+            d.innerHTML = `
+                <div class="u">${m.user} <span class="uid">${m.uid}</span></div>
+                <div class="txt">${m.text}</div>
+                ${m.fileUrl ? `<a href="${m.fileUrl}" target="_blank" class="file-link">📁 ${m.fileName}</a>` : ''}
+            `;
+            area.appendChild(d);
+            area.scrollTop = area.scrollHeight;
+        }
+    </script>
 </body>
 </html>
