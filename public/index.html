@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
     <title>Messenger v12.2 Stable</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        /* ТВОИ СТИЛИ */
         * { box-sizing: border-box; }
         body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; }
         .box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; }
         input, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
         button { background: #00ff88; color: #000; font-weight: bold; cursor: pointer; border: none; }
@@ -23,16 +23,7 @@
         .u { font-size: 10px; opacity: 0.6; margin-bottom: 3px; font-weight: bold; display: flex; align-items: center; justify-content: space-between; }
         .uid { color: #00ff88; margin-left: 5px; }
         .del { color: #ff3b3b; cursor: pointer; font-weight: bold; }
-        
-        .call-btn { background: none; border: 1px solid #00ff88; color: #00ff88; font-size: 9px; padding: 2px 5px; border-radius: 5px; cursor: pointer; }
-
-        /* ЗВОНКИ */
-        #call-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .video-wrap { position: relative; width: 90%; max-width: 800px; aspect-ratio: 16/9; background: #111; border-radius: 20px; overflow: hidden; }
-        #remote-v { width: 100%; height: 100%; object-fit: cover; }
-        #local-v { position: absolute; bottom: 20px; right: 20px; width: 150px; border: 2px solid #00ff88; border-radius: 10px; }
-        .call-ctrl { margin-top: 20px; display: flex; gap: 20px; }
-        .hangup { background: #ff3b3b !important; padding: 15px 40px !important; }
+        .call-btn { background: none; border: 1px solid #00ff88; color: #00ff88; font-size: 9px; padding: 2px 5px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
 
         .bar-c { padding: 15px; background: #0a0a0a; border-top: 1px solid #222; }
         .bar { display: flex; gap: 10px; align-items: center; }
@@ -40,6 +31,13 @@
         img { max-width: 100%; border-radius: 10px; margin-top: 5px; }
         #f { display: none; }
         .p-b { height: 3px; background: #00ff88; width: 0%; transition: 0.2s; margin-bottom: 5px; }
+
+        /* ИНТЕРФЕЙС ЗВОНКА */
+        #call-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        .video-wrap { position: relative; width: 90%; max-width: 800px; aspect-ratio: 16/9; background: #111; border-radius: 20px; overflow: hidden; border: 1px solid #333;}
+        #remote-v { width: 100%; height: 100%; object-fit: cover; }
+        #local-v { position: absolute; bottom: 20px; right: 20px; width: 150px; border: 2px solid #00ff88; border-radius: 10px; }
+        .hangup { background: #ff3b3b !important; padding: 15px 40px !important; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -72,9 +70,7 @@
         <video id="remote-v" autoplay playsinline></video>
         <video id="local-v" autoplay playsinline muted></video>
     </div>
-    <div class="call-ctrl">
-        <button class="hangup" onclick="endCall()">ЗАВЕРШИТЬ</button>
-    </div>
+    <button class="hangup" onclick="endCall()">ЗАВЕРШИТЬ ЗВОНОК</button>
 </div>
 
 <script>
@@ -94,6 +90,7 @@
     async function hAuth() {
         const login = document.getElementById('l').value, password = document.getElementById('p').value;
         if(!login || !password) return alert("Заполни всё!");
+
         try {
             const res = await fetch('/auth', {
                 method: 'POST',
@@ -101,11 +98,16 @@
                 body: JSON.stringify({ login, password, isReg: isR })
             });
             const data = await res.json();
+            
+            if(res.status === 503) return alert("База данных еще спит. Подожди 10 сек.");
             if(data.error) return alert(data.error);
+            
             my = data;
             localStorage.setItem('msgr_v12_user', JSON.stringify(my));
             loginSuccess();
-        } catch(e) { alert("Ошибка сервера"); }
+        } catch(e) {
+            alert("Ошибка подключения. Попробуй позже.");
+        }
     }
 
     function loginSuccess() {
@@ -115,7 +117,7 @@
         initPeer();
     }
 
-    // ЛОГИКА ЗВОНКОВ
+    // --- ЛОГИКА ЗВОНКОВ ---
     function initPeer() {
         peer = new Peer(my.uid, {
             host: location.hostname,
@@ -124,12 +126,14 @@
         });
 
         peer.on('call', async (call) => {
-            if (confirm("Входящий звонок! Ответить?")) {
-                localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-                document.getElementById('local-v').srcObject = localStream;
-                document.getElementById('call-ui').style.display = 'flex';
-                call.answer(localStream);
-                setupCallEvents(call);
+            if (confirm("📞 Входящий видеозвонок! Ответить?")) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+                    document.getElementById('local-v').srcObject = localStream;
+                    document.getElementById('call-ui').style.display = 'flex';
+                    call.answer(localStream);
+                    setupCallEvents(call);
+                } catch(err) { alert("Нет доступа к камере/микрофону"); }
             }
         });
     }
@@ -158,9 +162,12 @@
         document.getElementById('call-ui').style.display = 'none';
     }
 
-    // ЧАТ
+    // --- ЛОГИКА ЧАТА ---
     socket.on('history', list => {
-        document.getElementById('msgs').innerHTML = '';
+        document.getElementById('msgs').i
+
+
+nnerHTML = '';
         list.forEach(add);
     });
 
@@ -169,23 +176,24 @@
 
     async function send() {
         const txt = document.getElementById('in'), fInp = document.getElementById('f'), pb = document.getElementById('pb');
-        if(!txt.value.trim() && !fInp.file
-
-
-s[0]) return;
+        if(!txt.value.trim() && !fInp.files[0]) return;
 
         let fD = null;
         if(fInp.files[0]) {
             const fd = new FormData();
             fd.append('file', fInp.files[0]);
-            fD = await new Promise((res) => {
-                const x = new XMLHttpRequest();
-                x.open('POST', '/upload');
-                x.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
-                x.onload = () => res(JSON.parse(x.responseText));
-                x.send(fd);
-            });
-            pb.style.width = '0%'; fInp.value = '';
+            try {
+                fD = await new Promise((res, rej) => {
+                    const x = new XMLHttpRequest();
+                    x.open('POST', '/upload');
+                    x.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
+                    x.onload = () => x.status === 200 ? res(JSON.parse(x.responseText)) : rej();
+                    x.onerror = rej;
+                    x.send(fd);
+                });
+            } catch(e) { alert("Файл не улетел — база спит"); }
+            pb.style.width = '0%';
+            fInp.value = '';
         }
 
         socket.emit('message', {
@@ -198,13 +206,19 @@ s[0]) return;
     function add(m) {
         const area = document.getElementById('msgs'), d = document.createElement('div');
         d.className = `m ${m.uid === my.uid ? 'me' : ''}`; d.id = m._id;
-        let h = `<div class="u"><div>${m.user} <span class="uid">#${m.uid.replace('id','')}</span></div>`;
+        
+        // Красивый вывод: прячем 'id' и добавляем решетку для дизайна
+        let displayUid = m.uid.replace('id', '#');
+        
+        let h = `<div class="u"><div>${m.user} <span class="uid">${displayUid}</span></div>`;
         if(m.uid !== my.uid) h += `<button class="call-btn" onclick="startCall('${m.uid}')">📞 Звонок</button>`;
         if(m.uid === my.uid) h += `<span class="del" onclick="socket.emit('deleteMsg',{id:'${m._id}',room:'Main',fileId:'${m.fileId}'})">✕</span>`;
         h += `</div>`;
+        
         if(m.text) h += `<div>${m.text}</div>`;
         if(m.fileUrl) {
             if(m.fileType?.includes('image')) h += `<img src="${m.fileUrl}">`;
+            else if(m.fileType?.includes('video')) h += `<video src="${m.fileUrl}" controls style="max-width:100%; border-radius:10px;"></video>`;
             h += `<a href="${m.fileUrl}" target="_blank" style="color:#00ff88; display:block; font-size:12px; margin-top:5px; text-decoration:none;">💾 ${m.fileName}</a>`;
         }
         d.innerHTML = h; area.appendChild(d); area.scrollTop = area.scrollHeight;
