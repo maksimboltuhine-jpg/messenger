@@ -43,14 +43,14 @@ app.post('/auth', async (req, res) => {
         if (isReg) {
             if (user) return res.status(400).json({ error: "Занято" });
             const hash = await bcrypt.hash(password, 7);
-            const uid = Math.floor(1000 + Math.random() * 9000).toString();
+            const uid = Math.floor(1000 + Math.random() * 9999).toString();
             user = new User({ login, password: hash, uid });
             await user.save();
         } else {
             if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: "Ошибка" });
         }
         res.json({ login: user.login, uid: user.uid });
-    } catch (e) { res.status(500).json({ error: "БД Error" }); }
+    } catch (e) { res.status(500).json({ error: "Ошибка БД" }); }
 });
 
 const upload = multer({ dest: 'uploads/' });
@@ -64,7 +64,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 app.get('/file/:id', (req, res) => {
-    gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
+    try { gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res); } catch(e) {}
 });
 
 io.on('connection', (socket) => {
