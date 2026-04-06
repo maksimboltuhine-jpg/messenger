@@ -3,33 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MSGR v18</title>
+    <title>MSGR v19</title>
     <style>
-        :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; --blue: #0066ff; }
+        :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; --blue: #0066ff; --panel: #111; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
         /* Auth */
         #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 5000; }
-        .box { background: #111; padding: 30px; border-radius: 24px; width: 90%; max-width: 320px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #333; }
+        .box { background: var(--panel); padding: 30px; border-radius: 24px; width: 90%; max-width: 320px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #333; }
         input, button { padding: 15px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; font-size: 16px; }
         button { background: var(--green); color: #000; font-weight: bold; border: none; cursor: pointer; }
 
-        /* Chat UI */
+        /* Chat */
         #chat-ui { display: none; flex-direction: column; height: 100%; max-width: 900px; margin: 0 auto; width: 100%; background: #050505; }
         #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
-        .msg { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 85%; align-self: flex-start; line-height: 1.4; position: relative; }
+        .msg { padding: 12px 16px; border-radius: 18px; background: #1a1a1a; max-width: 85%; align-self: flex-start; }
         .msg.me { align-self: flex-end; background: #0044aa; }
-        .uid-tag { cursor: pointer; font-weight: bold; color: var(--green); margin-right: 5px; }
+        .uid-tag { cursor: pointer; font-weight: bold; color: var(--green); }
 
-        /* Call Screen */
+        /* Call Screen - ИСПРАВЛЕННЫЙ ЛЕЙАУТ */
         #call-screen { display: none; position: fixed; inset: 0; background: #000; z-index: 4000; flex-direction: column; }
-        .v-wrap { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
-        #r-vid { width: 100%; max-height: 100%; object-fit: contain; }
-        #l-vid { position: absolute; top: 20px; right: 20px; width: 100px; height: 140px; border-radius: 12px; border: 2px solid var(--green); object-fit: cover; transform: scaleX(-1); background: #111; }
         
-        .call-btns { height: 100px; display: flex; justify-content: center; align-items: center; gap: 20px; background: #111; padding-bottom: env(safe-area-inset-bottom); }
-        .btn-c { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; background: #222; }
+        .v-container { 
+            flex: 1; 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            background: #000;
+        }
+
+        #r-vid { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* Чтобы демка была большой, а камера не перекрывала кнопки */
+            max-height: 100%;
+        }
+
+        #l-vid { 
+            position: absolute; 
+            top: 15px; 
+            right: 15px; 
+            width: 90px; 
+            height: 120px; 
+            border-radius: 12px; 
+            border: 2px solid var(--green); 
+            object-fit: cover; 
+            transform: scaleX(-1); 
+            background: #111; 
+            z-index: 4001; 
+        }
+        
+        .call-footer { 
+            height: 100px; 
+            background: var(--panel); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 15px; 
+            border-top: 1px solid #333;
+            z-index: 4002; /* Кнопки всегда сверху */
+        }
+
+        .btn-c { width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; background: #222; cursor: pointer; }
         .btn-c.off { background: var(--red); }
         .btn-c.active { background: var(--blue); }
 
@@ -41,11 +79,14 @@
 
 <div id="auth">
     <div class="box">
-        <h2 style="text-align:center; margin:0 0 10px 0;">MSGR v18</h2>
+        <h2 style="text-align:center; margin:0 0 10px 0;">MSGR v19</h2>
         <input type="text" id="l" placeholder="Логин">
         <input type="password" id="p" placeholder="Пароль">
         <button onclick="auth(false)">ВОЙТИ</button>
-        <button onclick="auth(true)" style="background:#222; color:#fff;">РЕГИСТРАЦИЯ</button>
+        <button onclick="auth(true)" styl
+
+
+e="background:#222; color:#fff;">РЕГИСТРАЦИЯ</button>
     </div>
 </div>
 
@@ -58,16 +99,12 @@
 </div>
 
 <div id="chat-ui">
-    <div style="padding:15px; background:#111; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
-
-
-<span id="user-info" style="font-weight:bold"></span>
-        <button onclick="const id=prompt('Введите ID пользователя:'); if(id) makeCall(id)" style="padding:8px 15px; font-size:14px">📞 Позвонить</button>
+    <div style="padding:15px; background:var(--panel); border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;">
+        <span id="user-info" style="font-weight:bold"></span>
+        <button onclick="const id=prompt('ID пользователя:'); if(id) makeCall(id)" style="padding:8px 15px; font-size:14px">📞 Позвонить</button>
     </div>
-    
     <div id="msgs"></div>
-    
-    <div style="padding:10px 15px; background:#111; display:flex; gap:10px; align-items:center; position:relative;">
+    <div style="padding:10px 15px; background:var(--panel); display:flex; gap:10px; align-items:center; position:relative;">
         <div id="pb"></div>
         <input type="file" id="f-in" style="display:none" onchange="send()">
         <button onclick="document.getElementById('f-in').click()" style="background:#222; width:50px;">📎</button>
@@ -77,11 +114,11 @@
 </div>
 
 <div id="call-screen">
-    <div class="v-wrap">
+    <div class="v-container">
         <video id="r-vid" autoplay playsinline></video>
         <video id="l-vid" autoplay playsinline muted></video>
     </div>
-    <div class="call-btns">
+    <div class="call-footer">
         <div class="btn-c" onclick="toggleMic()" id="m-btn">🎤</div>
         <div class="btn-c" onclick="toggleCam()" id="v-btn">📷</div>
         <div class="btn-c" onclick="toggleScreen()" id="s-btn">🖥</div>
@@ -94,8 +131,8 @@
 <script>
     let socket = io(), peer, my, localStream, screenStream, currentCall;
 
-    if(localStorage.getItem('msgr_v18')) {
-        my = JSON.parse(localStorage.getItem('msgr_v18'));
+    if(localStorage.getItem('msgr_v19')) {
+        my = JSON.parse(localStorage.getItem('msgr_v19'));
         startApp();
     }
 
@@ -107,7 +144,7 @@
         const data = await res.json();
         if(data.error) return alert(data.error);
         my = data;
-        localStorage.setItem('msgr_v18', JSON.stringify(my));
+        localStorage.setItem('msgr_v19', JSON.stringify(my));
         startApp();
     }
 
@@ -115,68 +152,72 @@
         document.getElementById('auth').style.display = 'none';
         document.getElementById('chat-ui').style.display = 'flex';
         document.getElementById('user-info').innerText = `${my.login} (#${my.uid})`;
-        
         const cleanId = String(my.uid).replace('#', '');
         peer = new Peer(cleanId, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
-
-        peer.on('call', call => {
-            currentCall = call;
-            document.getElementById('inc-call').style.display = 'block';
-        });
-
+        peer.on('call', call => { currentCall = call; document.getElementById('inc-call').style.display = 'block'; });
         socket.emit('join', 'Main');
     }
 
-    /* --- ЗВОНКИ --- */
     async function makeCall(id) {
         const targetId = String(id).replace('#', '');
         if (targetId === String(my.uid).replace('#', '')) return alert('Нельзя звонить себе');
-
         try {
             localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-            const call = peer.call(targetId, localStream);
-            if (!call) return alert('Пользователь недоступен');
-            showCallUI(call);
-        } catch (e) { alert("Нет доступа к камере"); }
+            showCallUI(peer.call(targetId, localStream));
+        } catch (e) { alert("Ошибка камеры"); }
     }
 
     async function acceptCall() {
         document.getElementById('inc-call').style.display = 'none';
         try {
             localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-            currentCall.answer(localStream);
-            showCallUI(currentCall);
+            currentCall.answer(localStream);showCallUI(currentCall);
         } catch (e) { alert("Ошибка доступа"); }
     }
 
     function showCallUI(call) {
+        if(!call) return alert("Ошибка связи");
         currentCall = call;
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('l-vid').srcObject = localStream;
-        call.on('stream', s => {
-            const rVid = document.getElementById('r-vid');
-            rVid.srcObject = s;
-            rVid.play(); // Принудительный запуск для мобилок
+        call.on('stream', s => { 
+            const rv = document.getElementById('r-vid');
+            rv.srcObject = s; 
+            rv.play(); 
         });
     }
 
+    // ИСПРАВЛЕННАЯ ДЕМКА СО ЗВУКОМ
     async function toggleScreen() {
-        if (!navigator.mediaDevices.getDisplayMedia) {
-            return alert("Демка не поддерживается на этом устройстве (мобильные браузеры не умеют шарить экран)");
-        }
-        const vSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+        if (!navigator.mediaDevices.getDisplayMedia) return alert("Не поддерживается на мобилках");
+        
+        const videoSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+        const audioSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'audio');
+
         if (!screenStream) {
             try {
-                screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
-                vSender.replaceTrack(screenStream.getVideoTracks()[0]);
+                // Запрашиваем экран и звук системы
+                screenStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
+                
+                // Меняем видео
+                videoSender.replaceTrack(screenStream.getVideoTracks()[0]);
+                
+                // Если пользователь разрешил звук в демке, меняем и его
+                if (screenStream.getAudioTracks().length > 0 && audioSender) {
+                    audioSender.replaceTrack(screenStream.getAudioTracks()[0]);
+                }
+
                 document.getElementById('l-vid').srcObject = screenStream;
                 document.getElementById('s-btn').classList.add('active');
+                
                 screenStream.getVideoTracks()[0].onended = () => toggleScreen();
-            } catch(e) {}
+            } catch(e) { console.log("Отмена демки"); }
         } else {
             screenStream.getTracks().forEach(t => t.stop());
             screenStream = null;
-            vSender.replaceTrack(localStream.getVideoTracks()[0]);
+            videoSender.replaceTrack(localStream.getVideoTracks()[0]);
+            if (audioSender) audioSender.replaceTrack(localStream.getAudioTracks()[0]);
+            
             document.getElementById('l-vid').srcObject = localStream;
             document.getElementById('s-btn').classList.remove('active');
         }
@@ -191,15 +232,12 @@
         t.enabled = !t.enabled; document.getElementById('v-btn').classList.toggle('off', !t.enabled);
     }
 
-    /* --- ФАЙЛЫ И ЧАТ --- */
     socket.on('history', h => h.forEach(render));
     socket.on('renderMsg', render);
 
     async function send() {
-        const i = document.getElementById('msg-in');
-        const f = document.getElementById('f-in');
+        const i = document.getElementById('msg-in'), f = document.getElementById('f-in');
         if(!i.value.trim() && !f.files[0]) return;
-
         let fData = null;
         if(f.files[0]) {
             const fd = new FormData();
@@ -214,28 +252,22 @@
             document.getElementById('pb').style.width = '0%';
             f.value = '';
         }
-
-        socket.emit('message', { 
-            user: my.login, uid: my.uid, text: i.value, room: 'Main',
-            fileUrl: fData?.fileUrl, fileType: fData?.fileType, fileName: fData?.fileName
-        });
+        socket.emit('message', { user: my.login, uid: my.uid, text: i.value, room: 'Main', fileUrl: fData?.fileUrl, fileType: fData?.fileType, fileName: fData?.fileName });
         i.value = '';
     }
 
     function render(m) {
         const d = document.createElement('div');
         d.className = `msg ${String(m.uid) === String(my.uid) ? 'me' : ''}`;
-        
         let html = `<div><span class="uid-tag" onclick="makeCall('${m.uid}')">#${m.uid}</span><b>${m.user}</b></div>`;
         if (m.text) html += `<div>${m.text}</div>`;
-        
-        if (m.fileUrl) {
-            if (m.fileType && m.fileType.startsWith('image/')) {
-                html += `<img src="${m.fileUrl}" style="max-width:100%; border-radius:10px; margin-top:8px; display:block;">`;
-            }
-            html += `<a href="${m.fileUrl}" target="_blank" download="${m.fileName || 'file'}" style="color:var(--green); text-decoration:none; display:block; margin-top:8px; font-size:13px; background:#000; padding:5px 10px; border-radius:8px; border:1px solid #333;">💾 Скачать: ${m.fileName || 'Файл'}</a>`;
+        i
+
+
+f (m.fileUrl) {
+            if (m.fileType?.startsWith('image/')) html += `<img src="${m.fileUrl}" style="max-width:100%; border-radius:10px; margin-top:8px; display:block;">`;
+            html += `<a href="${m.fileUrl}" target="_blank" download="${m.fileName}" style="color:var(--green); text-decoration:none; display:block; margin-top:8px; font-size:13px; background:#000; padding:8px; border-radius:8px; border:1px solid #333;">💾 Скачать: ${m.fileName}</a>`;
         }
-        
         d.innerHTML = html;
         document.getElementById('msgs').appendChild(d);
         document.getElementById('msgs').scrollTop = 99999;
