@@ -1,11 +1,7 @@
 {
-  "name": "call-v23-ultimate",
+  "name": "messenger-v23",
   "version": "23.0.0",
-  "description": "Full Messenger + Video Calls",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",

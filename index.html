@@ -3,216 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CALL v23 ULTIMATE</title>
+    <title>Messenger v23</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --green: #00ff88; --red: #ff3b3b; --bg: #0a0a0a; --panel: #161616; }
+        /* Твои стили */
+        :root { --green: #00ff88; }
         * { box-sizing: border-box; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
-        /* Авторизация */
-        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .box { background: #111; padding: 30px; border-radius: 24px; width: 340px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; text-align: center; }
-        input, button { padding: 15px; border-radius: 14px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; font-size: 16px; }
-        button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
-        button:active { transform: scale(0.95); }
-
-        /* Интерфейс чата */
-        #chat { display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 600px; margin: 0 auto; border-left: 1px solid #222; border-right: 1px solid #222; }
-        .head { padding: 15px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
-        
-        /* Сообщения */
-        .m { max-width: 85%; padding: 12px; border-radius: 18px; background: #222; position: relative; animation: fadeIn 0.3s ease; }
-        .m.me { align-self: flex-end; background: #2a2a2a; border-bottom-right-radius: 4px; }
-        .u { font-size: 12px; color: var(--green); margin-bottom: 4px; font-weight: bold; }
-        .uid { color: #666; font-weight: normal; margin-left: 5px; }
-        .txt { line-height: 1.4; word-break: break-word; }
-        .file-link { display: block; margin-top: 8px; color: var(--green); text-decoration: none; font-size: 13px; border: 1px dashed #444; padding: 8px; border-radius: 8px; }
-
-        /* Видео контейнер */
-        #video-grid { display: none; position: fixed; inset: 0; background: #000; z-index: 1500; grid-template-rows: 1fr 1fr; gap: 10px; padding: 10px; }
-        video { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; background: #111; }
-        #local-video { border: 2px solid var(--green); }
-        .call-tools { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; }
-        .btn-round { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; border: none; }
-        .hangup { background: var(--red); color: white; }
-
-        /* Панель ввода */
-        .bar { padding: 15px; background: var(--panel); display: flex; gap: 10px; align-items: center; border-top: 1px solid #333; }
-        #txt { flex: 1; background: #0a0a0a; border: 1px solid #333; }
-        .btn-call { background: var(--green); color: #000; width: 45px; height: 45px; border-radius: 12px; font-size: 20px; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; }
+        input, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
+        button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; }
+        #chat { display: none; flex-direction: column; height: 100%; max-width: 800px; margin: 0 auto; width: 100%; }
+        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .m { padding: 10px; border-radius: 15px; background: #1a1a1a; max-width: 85%; align-self: flex-start; }
+        .m.me { align-self: flex-end; background: #0066ff; }
+        .u { font-size: 10px; color: var(--green); margin-bottom: 3px; }
+        .bar { padding: 15px; background: #0a0a0a; display: flex; gap: 10px; border-top: 1px solid #222; }
     </style>
 </head>
 <body>
 
-    <div id="auth">
-        <div class="box">
-            <h2 id="auth-title">Вход</h2>
-            <input type="text" id="logInp" placeholder="Логин">
-            <input type="password" id="passInp" placeholder="Пароль">
-            <button onclick="auth()">Войти</button>
-            <p style="font-size: 13px; color: #888; cursor: pointer;" onclick="toggleAuthMode()" id="auth-mode">Нет аккаунта? Регистрация</p>
-        </div>
+<div id="auth">
+    <div class="box">
+        <h2 id="title" style="text-align:center; color:var(--green)">ВХОД</h2>
+        <input type="text" id="logInp" placeholder="Логин">
+        <input type="password" id="passInp" placeholder="Пароль">
+        <button onclick="auth()">ВОЙТИ</button>
+        <div style="text-align:center; font-size:11px; color:#888; cursor:pointer;" onclick="tMode()" id="mode">Нет аккаунта? Регистрация</div>
     </div>
+</div>
 
-    <div id="video-grid">
-        <video id="remote-video" autoplay playsinline></video>
-        <video id="local-video" autoplay muted playsinline></video>
-        <div class="call-tools">
-            <button class="btn-round hangup" onclick="endCall()">📞</button>
-        </div>
+<div id="chat">
+    <div id="msgs"></div>
+    <div class="bar">
+        <input type="text" id="in" placeholder="Сообщение..." style="flex:1" onkeypress="if(event.key==='Enter')send()">
+        <button onclick="send()">➤</button>
     </div>
+</div>
 
-    <div id="chat">
-        <div class="head">
-            <div><b>CALL v23</b> <span id="my-id" style="color:var(--green)"></span></div>
-            <button onclick="startCall()" style="padding: 5px 10px; font-size: 12px;">Звонок</button>
-        </div>
-        <div id="msgs"></div>
-        <div class="bar">
-            <input type="file" id="fInp" hidden onchange="sendFile()">
-            <button onclick="document.getElementById('fInp').click()" style="background:#333; color:#fff">📎</button>
-            <input type="text" id="txt" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') send()">
-            <button onclick="send()">➤</button>
-        </div>
-    </div>
+<script>
+    const socket = io();
+    let my = null; // Исправлено: инициализируем null
+    let isReg = false;
 
-    <script>
-        const socket = io();
-        let my = null;
-        let isReg = false;
-        let myPeer, localStream, currentCall;
+    // Пытаемся восстановить сессию
+    const saved = localStorage.getItem('user_v23');
+    if (saved) {
+        my = JSON.parse(saved);
+        loginSuccess();
+    }
 
-        function toggleAuthMode() {
-            isReg = !isReg;
-            document.getElementById('auth-title').innerText = isReg ? 'Регистрация' : 'Вход';
-            document.getElementById('auth-mode').innerText = isReg ? 'Уже есть аккаунт? Вход' : 'Нет аккаунта? Регистрация';
-        }
+    function tMode() {
+        isReg = !isReg;
+        document.getElementById('title').innerText = isReg ? "РЕГИСТРАЦИЯ" : "ВХОД";
+        document.getElementById('mode').innerText = isReg ? "Есть аккаунт? Войти" : "Нет аккаунта? Регистрация";
+    }
 
-        async function auth() {
-            const login = document.getElementById('logInp').value;
-            const password = document.getElementById('passInp').value;
-            if(!login || !password) return alert("Заполни поля");
+    async function auth() {
+        const login = document.getElementById('logInp').value;
+        const password = document.getElementById('passInp').value;
+        if (!login || !password) return alert("Заполни поля");
 
-            const res = await fetch('/auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ login, password, isReg })
-            });
-            const data = await res.json();
-
-            if(data.error) return alert(data.error);
-
-            my = data;
-            document.getElementById('auth').style.display = 'none';
-            document.getElementById('chat').style.display = 'flex';
-            document.getElementById('my-id').innerText = `${my.login} ${my.uid}`;
-            
-            socket.emit('join', 'Main');
-            initPeer(my.login);
-        }
-
-        // ПИР-ТО-ПИР ЛОГИКА
-        function initPeer(login) {
-            const cleanId = login.replace(/[^a-zA-Z0-9]/g, '');
-            myPeer = new Peer(cleanId, {
-                host: '/',
-                path: '/peerjs',
-                port: location.port || (location.protocol === 'https:' ? 443 : 80),
-                secure: location.protocol === 'https:'
-            });
-
-            myPeer.on('call', call => {
-                if(confirm("Входящий вызов! Ответить?")) {
-                    navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(stream => {
-                        localStream = stream;
-                        showVideo(true);
-                        document.getElementById('local-video').srcObject = stream;
-                        call.answer(stream);
-                        call.on('stream', userStream => {
-                            document.getElementById('remote-video').srcObject = userStream;
-                        });
-                        currentCall = call;
-                    });
-                }
-            });
-        }
-
-        function startCall() {
-            const target = prompt("Кому звоним? (Введите логин)");
-            if(!target) return;
-            const cleanTarget = target.replace(/[^a-zA-Z0-9]/g, '');
-
-            navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(stream => {
-                localStream = stream;
-                showVideo(true);
-                document.getElementById('local-video').srcObject = stream;
-                const c
-
-
-all = myPeer.call(cleanTarget, stream);
-                call.on('stream', userStream => {
-                    document.getElementById('remote-video').srcObject = userStream;
-                });
-                currentCall = call;
-            });
-        }
-
-        function endCall() {
-            if(currentCall) currentCall.close();
-            if(localStream) localStream.getTracks().forEach(t => t.stop());
-            showVideo(false);
-        }
-
-        function showVideo(visible) {
-            document.getElementById('video-grid').style.display = visible ? 'grid' : 'none';
-        }
-
-        // ЧАТ ЛОГИКА
-        function send() {
-            const txt = document.getElementById('txt');
-            if(!txt.value) return;
-            socket.emit('message', { user: my.login, uid: my.uid, text: txt.value, room: 'Main' });
-            txt.value = '';
-        }
-
-        async function sendFile() {
-            const file = document.getElementById('fInp').files[0];
-            if(!file) return;
-            const fd = new FormData();
-            fd.append('file', file);
-            
-            const res = await fetch('/upload', { method: 'POST', body: fd });
-            const data = await res.json();
-            
-            socket.emit('message', { 
-                user: my.login, uid: my.uid, text: `Файл: ${data.fileName}`, 
-                room: 'Main', fileUrl: data.fileUrl, fileName: data.fileName 
-            });
-        }
-
-        socket.on('renderMsg', m => add(m));
-        socket.on('history', h => {
-            document.getElementById('msgs').innerHTML = '';
-            h.forEach(m => add(m));
+        const res = await fetch('/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password, isReg })
         });
+        const data = await res.json();
+        if (data.error) return alert(data.error);
 
-        function add(m) {
-            const area = document.getElementById('msgs');
-            const d = document.createElement('div');
-            d.className = `m ${m.uid === my.uid ? 'me' : ''}`;
-            d.innerHTML = `
-                <div class="u">${m.user} <span class="uid">${m.uid}</span></div>
-                <div class="txt">${m.text}</div>
-                ${m.fileUrl ? `<a href="${m.fileUrl}" target="_blank" class="file-link">📁 ${m.fileName}</a>` : ''}
-            `;
-            area.appendChild(d);
-            area.scrollTop = area.scrollHeight;
-        }
-    </script>
+        my = data;
+        localStorage.setItem('user_v23', JSON.stringify(my));
+        loginSuccess();
+    }
+
+    function loginSuccess() {
+        document.getElementById('auth').style.display = 'none';
+        document.getElementById('chat').style.display = 'flex';
+        socket.emit('join', 'Main');
+    }
+
+    socket.on('history', list => {
+        document.getElementById('msgs').innerHTML = '';
+        list.forEach(add);
+    });
+
+    socket.on('renderMsg', add);
+
+    function s
+
+
+end() {
+        const txt = document.getElementById('in');
+        if (!txt.value.trim()) return;
+        socket.emit('message', { user: my.login, uid: my.uid, text: txt.value, room: 'Main' });
+        txt.value = '';
+    }
+
+    function add(m) {
+        const area = document.getElementById('msgs'), d = document.createElement('div');
+        d.className = `m ${m.uid === my.uid ? 'me' : ''}`;
+        d.innerHTML = `<div class="u">${m.user} ${m.uid}</div><div>${m.text}</div>`;
+        area.appendChild(d);
+        area.scrollTop = area.scrollHeight;
+    }
+</script>
 </body>
 </html>

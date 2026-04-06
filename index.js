@@ -11,26 +11,22 @@ const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { 
-    cors: { origin: "*" }, 
-    maxHttpBufferSize: 1e8 
-});
+const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
-// Настройка PeerJS (интегрирована в основной сервер)
+// Интеграция PeerJS сервера
 const peerServer = ExpressPeerServer(server, {
     debug: true,
     path: '/'
 });
 
 app.use(compression());
-app.use(express.json({ limit: '100mb' }));
+app.use(express.json({limit: '100mb'}));
 app.use(express.static(__dirname));
-app.use('/peerjs', peerServer); // Путь для видеозвонков
+app.use('/peerjs', peerServer);
 
-// ТВОЯ МОНГО (из v23)
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 
-// СХЕМЫ ДАННЫХ
+// Схемы данных
 const User = mongoose.model('User', new mongoose.Schema({
     login: { type: String, unique: true, required: true },
     password: { type: String, required: true },
@@ -38,32 +34,25 @@ const User = mongoose.model('User', new mongoose.Schema({
 }));
 
 const Msg = mongoose.model('Msg', new mongoose.Schema({
-    user: String, 
-    uid: String, 
-    text: String, 
-    room: String,
-    fileUrl: String, 
-    fileType: String, 
-    fileName: String,
-    createdAt: { type: Date, default: Date.now, expires: 86400 } // Удаление через 24ч
+    user: String, uid: String, text: String, room: String,
+    fileUrl: String, fileType: String, fileName: String,
+    createdAt: { type: Date, default: Date.now, expires: 86400 }
 }));
 
 let gfsBucket;
 
-// ПОДКЛЮЧЕНИЕ К БД
 const connectDB = async () => {
     try {
         await mongoose.connect(MONGO_URI);
-        console.log('🚀 SYSTEM ONLINE: DATABASE & PEERJS READY');
+        console.log('🚀 DATABASE & PEER ONLINE');
         gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
     } catch (err) {
-        console.error('❌ DB Connection Error:', err.message);
+        console.error('❌ DB Fail, retrying...', err.message);
         setTimeout(connectDB, 5000);
     }
 };
 connectDB();
 
-// API: АВТОРИЗАЦИЯ
 app.post('/auth', async (req, res) => {
     const { login, password, isReg } = req.body;
     try {
@@ -76,29 +65,20 @@ app.post('/auth', async (req, res) => {
             await user.save();
         } else {
             if (!user || !(await bcrypt.compare(password, user.password))) {
-                return res.status(400).json({ error: "Неверный логин или пароль" });
+                return res.status(400).json({ error: "Ошибка входа" });
             }
         }
         res.json({ login: user.login, uid: user.uid });
     } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
-// API: ЗАГРУЗКА ФАЙЛОВ
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', upload.single('file'), (req, res) => {
-    if (!gfsBucket || !req.file) return res.status(500).send('Ошибка загрузки');
-    let name = req.file.originalname;
-    try { name = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
-
-    const writeStream = gfsBucket.openUploadStream(name, { contentType: req.file.mimetype });
+    if (!gfsBucket || !req.file) return res.status(500).send('Ошибка');
+    const writeStream = gfsBucket.openUploadStream(req.file.originalname, { contentType: req.file.mimetype });
     fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
         fs.promises.unlink(req.file.path);
-        res.json({ 
-            fileUrl: `/file/${writeStream.id}`, 
-            fileId: writeStream.id, 
-            fileType: req.file.mimetype, 
-            fileName: name 
-        });
+        res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: req.file.originalname });
     });
 });
 
@@ -107,33 +87,18 @@ app.get('/file/:id', (req, res) => {
     gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
 });
 
-// ГЛАВНАЯ СТРАНИЦА
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-
-// СОКЕТЫ (ЧАТ)
 io.on('connection', (socket) => {
     socket.on('join', async (room) => {
         socket.join(room);
         const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean();
         socket.emit('history', history);
     });
-
     socket.on('message', async (data) => {
         const m = new Msg(data);
         await m.save();
         io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
     });
-
-    socket.on('deleteMsg', async ({ id, room, fileId }) => {
-        await Msg.findByIdAndDelete(id);
-        if (fileId && gfsBucket) {
-            try { await gfsBucket.delete(new mongoose.Types.ObjectId(fileId)); } catch(e) {}
-        }
-        io.to(room).emit('msgDeleted', id);
-    });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n--- CALL v23 ULTIMATE ---\nServer: http://localhost:${PORT}\nPeerJS: /peerjs\n------------------------`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`Server on port ${PORT}`));
