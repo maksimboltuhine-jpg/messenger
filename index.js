@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { ExpressPeerServer } = require('peer');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
@@ -9,7 +8,7 @@ const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
+const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -30,17 +29,9 @@ const Msg = mongoose.model('Msg', new mongoose.Schema({
 
 let gfsBucket;
 mongoose.connect(MONGO_URI).then(() => {
-    console.log('✅ DB Connected');
+    console.log('✅ MongoDB Ready');
     gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 });
-
-// Настройка PeerJS с учетом прокси Render
-const peerServer = ExpressPeerServer(server, { 
-    debug: true, 
-    path: '/',
-    proxied: true 
-});
-app.use('/peerjs', peerServer);
 
 app.post('/auth', async (req, res) => {
     const { login, password, isReg } = req.body;
@@ -61,7 +52,7 @@ app.post('/auth', async (req, res) => {
 
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', upload.single('file'), (req, res) => {
-    if (!gfsBucket || !req.file) return res.status(500).send('File Error');
+    if (!gfsBucket || !req.file) return res.status(500).send('Error');
     const writeStream = gfsBucket.openUploadStream(req.file.originalname, { contentType: req.file.mimetype });
     fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
         fs.promises.unlink(req.file.path);
@@ -70,9 +61,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 app.get('/file/:id', (req, res) => {
-    try {
-        gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
-    } catch (e) { res.status(404).send('Not Found'); }
+    try { gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res); } catch(e) {}
 });
 
 io.on('connection', (socket) => {
@@ -87,5 +76,4 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`🚀 v28 running on port ${PORT}`));
+server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log('🚀 Server running'));
