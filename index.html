@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MSGR v25</title>
+    <title>MSGR v25 FIXED</title>
     <style>
         :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; --panel: #111; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -13,15 +13,14 @@
         button { background: var(--green); color: #000; font-weight: bold; border: none; cursor: pointer; }
         #chat-ui { display: none; flex-direction: column; height: 100%; }
         #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { background: #1a1a1a; padding: 10px 15px; border-radius: 18px; max-width: 85%; align-self: flex-start; position: relative; }
+        .msg { background: #1a1a1a; padding: 10px 15px; border-radius: 18px; max-width: 85%; align-self: flex-start; }
         .msg.me { align-self: flex-end; background: #0044aa; }
         #call-screen { display: none; position: fixed; inset: 0; background: #000; z-index: 5000; flex-direction: column; }
-        .v-cont { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+        .v-cont { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
         #rv { width: 100%; height: 100%; object-fit: contain; }
-        #lv { position: absolute; top: 20px; right: 20px; width: 100px; height: 130px; border: 2px solid var(--green); border-radius: 12px; object-fit: cover; }
+        #lv { position: absolute; top: 20px; right: 20px; width: 100px; height: 130px; border: 2px solid var(--green); border-radius: 12px; object-fit: cover; z-index: 10; }
         .controls { height: 100px; background: #111; display: flex; justify-content: center; align-items: center; gap: 20px; }
         .btn-round { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; background: #222; }
-        #pb { position: absolute; top: 0; left: 0; height: 3px; background: var(--green); width: 0%; transition: 0.1s; }
     </style>
 </head>
 <body>
@@ -37,13 +36,12 @@
 </div>
 
 <div id="chat-ui">
-    <div style="padding:15px; background:var(--panel); display:flex; justify-content:space-between; align-items:center;">
-        <b id="u-info"></b>
-        <button onclick="makeCall(prompt('Введите ID:'))" style="padding:10px 20px">📞 Звонок</button>
+    <div style="padding:15px; background:var(--panel); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333">
+        <b id="u-info" style="color:var(--green)"></b>
+        <button onclick="makeCall(prompt('Введите ID друга:'))" style="padding:10px 20px">📞 Звонок</button>
     </div>
     <div id="msgs"></div>
-    <div style="padding:10px; display:flex; gap:10px; background:var(--panel); position:relative">
-        <div id="pb"></div>
+    <div style="padding:10px; display:flex; gap:10px; background:var(--panel)">
         <input type="file" id="f-in" style="display:none" onchange="send()">
         <button onclick="document.getElementById('f-in').click()" style="width:50px">📎</button>
         <input type="text" id="m-in" style="flex:1" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')send()">
@@ -57,8 +55,6 @@
         <video id="lv" autoplay playsinline muted></video>
     </div>
     <div class="controls">
-        <div class="btn-round" onclick="toggleMic()" id="m-btn">🎤</div>
-        <div class="btn-round" onclick="toggleScreen()" id="s-btn">🖥️</div>
         <div class="btn-round" style="background:var(--red)" onclick="location.reload()">❌</div>
     </div>
 </div>
@@ -66,10 +62,10 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <script>
-    let socket = io(), peer, my, localStream, screenStream, currentCall;
+    let socket = io(), peer, my, localStream, currentCall;
 
     async function auth(isReg) {
-        const login = document.getElementById('l').value, password = document.getElementById('p').value;
+        const login = document.getElementById('l').value, password= document.getElementById('p').value;
         const res = await fetch('/auth', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({login, password, isReg}) });
         const data = await res.json();
         if(data.error) return alert(data.error);
@@ -78,45 +74,40 @@
         document.getElementById('chat-ui').style.display = 'flex';
         document.getElementById('u-info').innerText = `${my.login} (#${my.uid})`;
         
-        peer = new Peer(my.uid, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
+        // PeerJS ID без решеток
+        const cleanId = my.uid.replace(/#/g, '');
+        peer = new Peer(cleanId, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
+
         peer.on('call', async call => {
             if(confirm("Входящий вызов!")) {
                 localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
                 call.answer(localStream);
-                showCallUI(call);
+                setupCallUI(call);
             }
         });
         socket.emit('join', 'Main');
     }
 
-    async function makeCall(id) {
-        if(!id) return;
-        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-        showCallUI(peer.call(id.replace('#', ''), localStream));
+    async function makeCall(targetId) {
+        if(!targetId) return;
+        const cleanTargetId = targetId.replace(/#/g, '');
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            const call = peer.call(cleanTargetId, localStream);
+            if (!call) throw new Error();
+            setupCallUI(call);
+        } catch (e) { alert("Не удалось позвонить. Проверьте ID."); }
     }
 
-    function showCallUI(call) {
+    function setupCallUI(call) {
         currentCall = call;
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('lv').srcObject = localStream;
-        call.on('stream', s => { document.getElementById('rv').srcObject = s; });
-    }
-
-    async function toggleScreen() {
-        const vSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-        const aSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'audio');
-        if (!screenStream) {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
-            vSender.replaceTrack(screenStream.getVideoTracks()[0]);
-            if(screenStream.getAudioTracks()[0]) aSender.replaceTrack(screenStream.getAudioTracks()[0]);
-            document.getElementById('lv').srcObject = screenStream;
-        } else {
-            screenStream.getTracks().forEach(t => t.stop());
-            screenStream = null;
-            vSender.replaceTrack(localStream.getVideoTracks()[0]);
-            aSender.replaceTrack(localStream.getAudioTracks()[0]);
-            document.getElementById('lv').srcObject = localStream;
-        }
+        call.on('stream', s => { 
+            const rv = document.getElementById('rv');
+            rv.srcObject = s;
+            rv.play();
+        });
     }
 
     async function send() {
@@ -139,13 +130,17 @@
     function render(m) {
         const d = document.createElement('div');
         d.className = `msg ${m.uid === my.uid ? 'me' : ''}`;
-        d.innerHTML = `<b>#${m.uid} ${m.user}</b>
+        let content = `<b>#${m.uid} ${m.user}</b>
 ${m.text || ''}`;
         if(m.fileUrl) {
-            if(m.fileType?.startsWith('image/')) d.innerHTML += `<img src="${m.fileUrl}" style="max-width:100%; border-radius:10px; margin-top:5px">`;
-            d.innerHTML += `
-<a href="${m.fileUrl}" style="color:var(--green)" download="${m.fileName}">💾 ${m.fileName}</a>`;
+            if(m.fileType?.startsWith('image/')) {
+                content += `
+<img src="${m.fileUrl}" style="max-width:100%; border-radius:10px; margin-top:5px">`;
+            }
+            content += `
+<a href="${m.fileUrl}" style="color:var(--green); text-decoration:none" download="${m.fileName}">💾 ${m.fileName}</a>`;
         }
+        d.innerHTML = content;
         document.getElementById('msgs').appendChild(d);
         document.getElementById('msgs').scrollTop = 9999;
     }
