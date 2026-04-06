@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MSGR v33 STABLE</title>
+    <title>MSGR v34 PRO</title>
     <style>
         :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; --panel: #111; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -13,21 +13,27 @@
         button { background: var(--green); color: #000; font-weight: bold; border: none; cursor: pointer; }
         #chat-ui { display: none; flex-direction: column; height: 100%; }
         header { padding: 15px; background: #111; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        #status { font-size: 11px; color: #777; }
         #msgs { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
-        .msg { background: #1a1a1a; padding: 12px; border-radius: 18px; max-width: 80%; align-self: flex-start; word-wrap: break-word; }
+        .msg { background: #1a1a1a; padding: 12px; border-radius: 18px; max-width: 80%; align-self: flex-start; }
         .msg.me { align-self: flex-end; background: #0055ff; }
+
+        /* ИНТЕРФЕЙС ЗВОНКА */
         #call-ui { display: none; position: fixed; inset: 0; background: #000; z-index: 5000; }
-        video { width: 100%; height: 100%; object-fit: contain; background: #050505; }
+        video { width: 100%; height: 100%; object-fit: contain; }
         #lv { position: absolute; top: 20px; right: 20px; width: 100px; height: 150px; border: 2px solid var(--green); border-radius: 15px; object-fit: cover; z-index: 5001; }
-        .hang { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: var(--red); width: 75px; height: 75px; border-radius: 50%; border: none; color: #fff; font-size: 32px; z-index: 5002; }
+        
+        .controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 5005; }
+        .btn-round { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-off { background: #444; color: #fff; }
+        .btn-on { background: var(--green); color: #000; }
+        .btn-hang { background: var(--red); color: #fff; }
     </style>
 </head>
 <body>
 
 <div id="auth-screen">
     <div class="box">
-        <h2 style="text-align:center; margin:0">MSGR v33</h2>
+        <h2>Messenger v34</h2>
         <input type="text" id="log-in" placeholder="Логин">
         <input type="password" id="pass-in" placeholder="Пароль">
         <button onclick="handleAuth(false)">ВОЙТИ</button>
@@ -37,36 +43,37 @@
 
 <div id="chat-ui">
     <header>
-        <div>
-            <b id="nick-name" style="color:var(--green)"></b>
-
-            <span id="status">Ожидание сети...</span>
-        </div>
-        <button id="call-btn" onclick="makeCall()" disabled style="opacity:0.5; padding: 10px 15px;">📞 ЗВОНОК</button>
+        <div><b id="nick-name" style="color:var(--green)"></b>
+<small id="status">...</small></div>
+        <button onclick="makeCall()">📞 ЗВОНОК</button>
     </header>
     <div id="msgs"></div>
-    <div style="padding:15px; display:flex; gap:10px; background:#111; border-top:1px solid #333">
-        <input type="file" id="f-in" style="display:none" onchange="sendMsg()">
-        <button onclick="document.getElementById('f-in').click()" style="width:50px">📎</button>
+    <div style="padding:15px; display:flex; gap:10px; background:#111">
         <input type="text" id="m-in" style="flex:1" placeholder="Текст..." onkeypress="if(event.key==='Enter') sendMsg()">
-        <button onclick="sendMsg()" style="width:60px">➤</button>
+        <button onclick="sendMsg()">➤</button>
     </div>
 </div>
 
 <div id="call-ui">
     <video id="rv" autoplay playsinline></video>
     <video id="lv" autoplay playsinline muted></video>
-    <button class="hang" onclick="location.reload()">❌</button>
+    
+    <div class="controls">
+        <button id="tog-cam" class="btn-round btn-on" onclick="toggleCam()">📷</button>
+        <button id="tog-mic" class="btn-round btn-on" onclick="toggleMic()">🎤</button>
+        <button class="btn-round btn-on" style="background:#0055ff" onclick="startShare()">🖥</button>
+        <button class="btn-round btn-hang" onclick="location.reload()">❌</button>
+    </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <script>
-    let socket = io(), peer, my, localStream;
+    let socket = io(), peer, my, localStream, currentCall;
+    let camOn = true, micOn = true;
 
-    // Авто-логин
     window.onload = () => {
-        const saved = localStorage.getItem('msgr_session_v33');
+        const saved = localStorage.getItem('msgr_v34');
         if(saved) { my = JSON.parse(saved); startApp(); } 
         else { document.getElementById('auth-screen').style.display = 'flex'; }
     };
@@ -78,7 +85,7 @@
         const data = await res.json();
         if(data.error) return alert(data.error);
         my = data;
-        localStorage.setItem('msgr_session_v33', JSON.stringify(my));
+        localStorage.setItem('msgr_v34', JSON.stringify(my));
         startApp();
     }
 
@@ -87,76 +94,86 @@
         document.getElementById('chat-ui').style.display = 'flex';
         document.getElementById('nick-name').innerText = `${my.login} (#${my.uid})`;
 
-        // Очищаем ID от решетки для PeerJS (скрин 7)
-        const cleanId = my.uid.replace(/#/g, '').trim();
-        peer = new Peer('msgr-' + cleanId);
+        peer = new Peer('msgr-' + my.uid.replace('#',''));
 
-        peer.on('open', () => {
-            document.getElementById('status').innerText = 'В сети';
-            document.getElementById('call-btn').disabled = false;
-            document.getElementById('call-btn').style.opacity = '1';
-        });
+        peer.on('open', () => document.getElementById('status').innerText = 'В сети');
 
         peer.on('call', async call => {
-            if(confirm("Входящий звонок!")) {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
-                    call.answer(localStream);
-                    handleStream(call);
-                } catch(e) { alert("Камера недоступна"); }
+            if(confirm("Входящий вызов!")) {
+                localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
+                call.answer(localStream);
+                handleStream(call);
             }
         });
         socket.emit('join', 'Main');
     }
 
     async function makeCall() {
-        const targetId = prompt('Введите ID (цифры):');
-        if(!targetId) return;
-        const cleanTarget = targetId.replace(/#/g, '').trim();
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
-            const call = peer.call('msgr-' + cleanTarget, localStream);
-            handleStream(call);
-        } catch(e) { alert("Ошибка доступа к камере"); }
+        const id = prompt('ID (только цифры):');
+        if(!id) return;
+        localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
+        currentCall = peer.call('msgr-' + id.replace('#',''), localStream);
+        handleStream(currentCall);
     }
 
     function handleStream(call) {
+        currentCall = call;
         document.getElementById('call-ui').style.display = 'block';
         document.getElementById('lv').srcObject = localStream;
-        call.on('stream', s => { 
-            const remoteVid = document.getElementById('rv');
-            remoteVid.srcObject = s;
-            remoteVid.play().catch(() => {
-                remoteVid.muted = true; remoteVid.play();
-                alert("Кликни на видео, чтобы включить звук");
-            });
-        });
+        call.on('stream', s => { document.getElementById('rv').srcObject = s; });
+    }
+
+    // УПРАВЛЕНИЕ КАМЕРОЙ И МИКРОФОНОМ
+    function toggleCam() {
+        camOn = !camOn;
+        localStream.getVideoTracks()[0].enabled = camOn;
+        document.getElementById('tog-cam').className = `btn-round ${camOn ? 'btn-on' : 'btn-off'}`;
+    }
+
+    function toggleMic() {
+        micOn = !micOn;
+        localStream.getAudioTracks()[0].enabled = micOn;
+        document.getElementById('tog-mic').className = `btn-round ${micOn ? 'btn-on' : 'btn-off'}`;
+    }
+
+    async function startShare() {
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
+            const videoTrack = screenStream.getVideoTracks()[0];
+            
+            // Заменяем трек в текущем звонке
+            const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+            sender.replaceTrack(videoTrack);
+            
+            document.getElementById('lv').srcObject = screenStream;
+
+            videoTrack.onended = () => {
+                sender.replaceTrack(localStream.getVideoTracks()[0]);
+                document.getElementById('lv').srcObject = localStream;
+            };
+        } catch(e) { alert("Демка недоступна"); }
     }
 
     async function sendMsg() {
-        const m = document.getElementById('m-in'), f = document.getElementById('f-in');
-        let fData = null;
-        if(f.files[0]) {
-            const fd = new FormData(); fd.append('file', f.files[0]);
-            const res = await fetch('/upload', { method: 'POST', body: fd });
-            fData = await res.json();
-        }
-        if(m.value.trim() || fData) {
-            socket.emit('message', { user: my.login, uid: my.uid, text: m.value, room: 'Main', ...fData });
-            m.value = ''; f.value = '';
+        const m = document.getElementById('m-in');
+        if(m.value.trim()) {
+            socket.emit('message', { user: my.login, uid: my.uid, text: m.value, room: 'Main' });
+            m.value = '';
         }
     }
 
-    socket.on('history', h => { document.getElementById('msgs').innerHTML = ''; h.forEach(renderMsg); });
-    socket.on('renderMsg', renderMsg);
+    socket.on('history', h => { document.getElementById('msgs').innerHTML = ''; h.forEach(render); });
+    socket.on('renderMsg', render);
 
-    function renderMsg(m) {
+    function render(m) {
         const d = document.createElement('div');
         d.className = `msg ${m.uid === my.uid ? 'me' : ''}`;
         d.innerHTML = `<b>#${m.uid} ${m.user}</b>
-${m.text || ''}` + (m.fileUrl ? `
-<a href="${m.fileUrl}" style="color:var(--green)" download>💾 Файл</a>` : '');
-        document.getElementById('msgs').appendChild(d);
+${m.text}`;
+        do
+
+
+cument.getElementById('msgs').appendChild(d);
         document.getElementById('msgs').scrollTop = 99999;
     }
 </script>
