@@ -11,10 +11,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
+// Удалили compression, чтобы не было ошибок модуля
 app.use(express.json({limit: '100mb'}));
 app.use(express.static(__dirname));
 
-// PeerJS сервер для звонков
 const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
@@ -37,17 +37,18 @@ let gfsBucket;
 const connectDB = async () => {
 try {
 await mongoose.connect(MONGO_URI);
-console.log('🚀 v13.1: CHAT & ULTIMATE CALLS ONLINE');
+console.log('🚀 v13.2: ONLINE');
 gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
 } catch (err) {
-console.error('❌ DB Fail, retrying...', err.message);
+console.error('❌ DB Error, retrying...', err.message);
 setTimeout(connectDB, 5000);
 }
 };
 connectDB();
 
+// Мидлвар для проверки базы (чтобы не было "DB not ready")
 const checkDB = (req, res, next) => {
-if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: "База спит, жди 10 сек" });
+if (mongoose.connection.readyState !== 1) return res.status(503).json({ error: "База просыпается, попробуй через 5 сек" });
 next();
 };
 
@@ -68,14 +69,13 @@ res.json({ login: user.login, uid: user.uid });
 } catch (e) { res.status(500).json({ error: "Ошибка сервера" }); }
 });
 
-// Работа с файлами
 const upload = multer({ dest: 'uploads/' });
 app.post('/upload', checkDB, upload.single('file'), (req, res) => {
 if (!gfsBucket || !req.file) return res.status(500).send('Ошибка');
 const writeStream = gfsBucket.openUploadStream(req.file.originalname);
 fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
 fs.promises.unlink(req.file.path);
-res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: req.file.originalname });
+res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id });
 });
 });
 
@@ -84,7 +84,6 @@ if (!gfsBucket) return res.status(503).send("База не готова");
 gfsBucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.id)).pipe(res);
 });
 
-// Сокеты для чата
 io.on('connection', (socket) => {
 socket.on('join', async (room) => {
 socket.join(room);
