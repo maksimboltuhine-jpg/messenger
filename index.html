@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MSGR + CALL v13</title>
+<title>MSGR v13.1 ULTIMATE</title>
 <style>
 :root { --green: #00ff88; --red: #ff3b3b; --bg: #000; }
 body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.box { background: #111; padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #333; }
+.box { background: #111; padding: 30px; border-radius: 20px; width: 320px; border: 1px solid #333; display: flex; flex-direction: column; gap: 10px; }
 input, button { padding: 14px; border-radius: 12px; border: 1px solid #333; background: #0a0a0a; color: #fff; outline: none; }
 button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; }
 
@@ -16,30 +16,30 @@ button { background: var(--green); color: #000; font-weight: bold; cursor: point
 #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
 .m { padding: 10px 15px; border-radius: 15px; background: #1a1a1a; max-width: 85%; align-self: flex-start; border: 1px solid #222; }
 .m.me { align-self: flex-end; background: #0066ff; border: none; }
-.u { font-size: 10px; opacity: 0.6; margin-bottom: 3px; font-weight: bold; }
-.uid-tag { color: var(--green); cursor: pointer; }
+.uid-tag { color: var(--green); cursor: pointer; font-weight: bold; }
 
-/* ВИДЕО ЗВОНОК */
+/* ЗВОНОК */
 #call-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 500; flex-direction: column; align-items: center; justify-content: center; }
 #v-cont { width: 90%; aspect-ratio: 16/9; background: #000; border-radius: 20px; overflow: hidden; position: relative; border: 1px solid #333; }
-video { width: 100%; height: 100%; object-fit: cover; }
+video { width: 100%; height: 100%; object-fit: contain; }
 #local-v { position: absolute; top: 10px; right: 10px; width: 80px; height: 110px; border-radius: 10px; border: 2px solid var(--green); z-index: 10; transform: scaleX(-1); }
-.call-tools { display: flex; gap: 15px; margin-top: 20px; }
-.btn-c { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #333; }
-.btn-red { background: var(--red); }
+.controls { display: flex; gap: 10px; margin-top: 20px; }
+.btn-c { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #333; cursor: pointer; }
+.off { background: var(--red) !important; }
+.active { background: var(--green) !important; color: #000; }
 
-#incoming { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111; padding: 20px; border-radius: 20px; border: 1px solid var(--green); z-index: 1100; text-align: center; width: 280px; }
+#incoming { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111; padding: 20px; border-radius: 20px; border: 1px solid var(--green); z-index: 1100; text-align: center; }
 </style>
 </head>
 <body>
 
 <div id="auth">
 <div class="box">
-<h2 id="a-t" style="text-align:center; color:var(--green)">MESSENGER</h2>
+<h2 style="text-align:center; color:var(--green)">MESSENGER</h2>
 <input type="text" id="l" placeholder="Логин">
 <input type="password" id="p" placeholder="Пароль">
-<button onclick="hAuth()" id="a-b">ВОЙТИ</button>
-<div style="text-align:center; font-size:11px; color:#888; cursor:pointer" onclick="tMode()" id="m-t">Регистрация</div>
+<button onclick="hAuth()">ВОЙТИ</button>
+<div style="text-align:center; font-size:11px; color:#888; cursor:pointer" onclick="isR=!isR; this.innerText=isR?'Есть аккаунт?':'Регистрация'">Регистрация</div>
 </div>
 </div>
 
@@ -50,8 +50,8 @@ video { width: 100%; height: 100%; object-fit: cover; }
 
 <div id="chat">
 <div style="padding:10px; background:#0a0a0a; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center">
-<div id="my-info" style="font-size:12px"></div>
-<button onclick="showCallPrompt()" style="padding:5px 15px; font-size:12px">📞 ЗВОНОК</button>
+<div id="my-info" style="font-size:12px; color:var(--green)"></div>
+<button onclick="const t=prompt('ID (без #):'); if(t)startCall(t)" style="padding:5px 10px; font-size:12px">📞 ПОЗВОНИТЬ</button>
 </div>
 
 <div id="msgs"></div>
@@ -61,9 +61,10 @@ video { width: 100%; height: 100%; object-fit: cover; }
 <video id="remote-v" autoplay playsinline></video>
 <video id="local-v" autoplay playsinline muted></video>
 </div>
-<div class="call-tools">
+<div class="controls">
 <div class="btn-c" id="m-btn" onclick="toggleMic()">🎤</div>
-<div class="btn-c btn-red" onclick="endCall()">📞</div>
+<div class="btn-c" id="v-btn" onclick="toggleCam()">📷</div><div class="btn-c" id="s-btn" onclick="toggleScreen()">🖥</div>
+<div class="btn-c" style="background:var(--red)" onclick="location.reload()">📞</div>
 </div>
 </div>
 
@@ -76,17 +77,11 @@ video { width: 100%; height: 100%; object-fit: cover; }
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <script>
-let socket = io(), peer, my, localStream, currentCall, isR = false;
+let socket = io(), peer, my, localStream, currentCall, screenStream, isR = false;
 
 if(localStorage.getItem('msgr_v13_user')) {
 my = JSON.parse(localStorage.getItem('msgr_v13_user'));
 loginSuccess();
-}
-
-function tMode() {
-isR = !isR;
-document.getElementById('a-t').innerText = isR ? "РЕГИСТРАЦИЯ" : "ВХОД";
-document.getElementById('m-t').innerText = isR ? "Есть аккаунт?" : "Регистрация";
 }
 
 async function hAuth() {
@@ -102,17 +97,11 @@ loginSuccess();
 function loginSuccess() {
 document.getElementById('auth').style.display = 'none';
 document.getElementById('chat').style.display = 'flex';
-document.getElementById('my-info').innerText = `${my.login} (#${my.uid})`;
-
+document.getElementById('my-info').innerText = `Я: #${my.uid}`;
 socket.emit('join', 'Main');
 
-// Инициализация звонков по UID пользователя
-peer = new Peer(my.uid, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: location.protocol === 'https:' });
-
-peer.on('call', call => {
-currentCall = call;
-document.getElementById('incoming').style.display = 'block';
-});
+peer = new Peer(my.uid, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
+peer.on('call', call => { currentCall = call; document.getElementById('incoming').style.display = 'block'; });
 }
 
 async function answerCall() {
@@ -122,43 +111,50 @@ currentCall.answer(localStream);
 setupCallUI(currentCall);
 }
 
-function showCallPrompt() {
-const target = prompt("Введи ID друга (без #):");
-if(target) startCall(target);
-}
-
-async function startCall(targetId) {
+async function startCall(id) {
 try {
 localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-const call = peer.call(targetId, localStream);
-setupCallUI(call);
-} catch(e) { alert("Камера недоступна"); }
+setupCallUI(peer.call(id, localStream));
+} catch(e) { alert("Камера недоступна. Проверь HTTPS!"); }
 }
 
 function setupCallUI(call) {
 currentCall = call;
 document.getElementById('call-overlay').style.display = 'flex';
 document.getElementById('local-v').srcObject = localStream;
-call.on('stream', stream => { document.getElementById('remote-v').srcObject = stream; });
-}
-
-function endCall() {
-location.reload(); // Простой способ сбросить всё
+call.on('stream', s => { document.getElementById('remote-v').srcObject = s; });
 }
 
 function toggleMic() {
-const t = localStream.getAudioTracks()[0];
-t.enabled = !t.enabled;
-document.getElementById('m-btn').style.background = t.enabled ? "#333" : "var(--red)";
+const t = localStream.getAudioTracks()[0]; t.enabled = !t.enabled;
+document.getElementById('m-btn').classList.toggle('off', !t.enabled);
 }
 
-// ЧАТ ЛОГИКА
+function toggleCam() {
+const t = localStream.getVideoTracks()[0]; t.enabled = !t.enabled;
+document.getElementById('v-btn').classList.toggle('off', !t.enabled);
+}
+
+async function toggleScreen() {
+const vSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+if (!screenStream) {
+screenStream = await navigator.mediaDevices.getDisplayMedia({video: true});
+vSender.replaceTrack(screenStream.getVideoTracks()[0]);
+document.getElementById('local-v').srcObject = screenStream;
+document.getElementById('s-btn').classList.add('active');
+} else {
+screenStream.getTracks().forEach(t => t.stop()); screenStream = null;
+vSender.replaceTrack(localStream.getVideoTracks()[0]);
+document.getElementById('local-v').srcObject = localStream;
+document.getElementById('s-btn').classList.remove('active');
+}
+}
+
 socket.on('history', list => { document.getElementById('msgs').innerHTML = ''; list.forEach(add); });
 socket.on('renderMsg', add);
 
 function send() {
-const txt = document.getElementById('in');
-if(!txt.value.trim()) return;
+const txt = document.getElementById('in'); if(!txt.value.trim()) return;
 socket.emit('message', { user: my.login, uid: '#' + my.uid, text: txt.value, room: 'Main' });
 txt.value = '';
 }
