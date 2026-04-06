@@ -1,7 +1,7 @@
 {
   "name": "messenger-v12-monolith",
   "version": "12.2.0",
-  "description": "Stable version with Video Calls",
+  "description": "Chat + Files + Calls",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

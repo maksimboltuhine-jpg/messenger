@@ -12,18 +12,23 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// 1. Инициализация PeerJS сервера (для звонков)
+// ЗВОНКИ (PeerJS)
 const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
-// 2. Настройки Socket.io
+// СОКЕТЫ (Чат)
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
 app.use(compression());
 app.use(express.json({limit: '100mb'}));
 app.use(express.static(__dirname));
 
-// ТВОЯ МОНГО
+// ЯВНЫЙ РОУТ ДЛЯ ФРОНТА (Исправляет белый экран "Cannot GET /")
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// БАЗА ДАННЫХ
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 
 const User = mongoose.model('User', new mongoose.Schema({
@@ -40,21 +45,37 @@ const Msg = mongoose.model('Msg', new mongoose.Schema({
 
 let gfsBucket;
 
-mongoose.connect(MONGO_URI).then(() => {
-    console.log('🚀 DATABASE ONLINE');
-    gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-}).catch(err => console.error('❌ DB Fail:', err));
+const connectDB = async () => {
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log('🚀 DATABASE ONLINE');
+        gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+    } catch (err) {
+        console.error('❌ DB Fail, retrying...', err.message);
+        setTimeout(connectDB, 5000);
+    }
+};
+connectDB();
+
+const checkDB = (req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ error: "База данных еще подключается. Подожди 10 сек." });
+    }
+    next();
+};
 
 // АВТОРИЗАЦИЯ
-app.post('/auth', async (req, res) => {
+app.post('/auth', checkDB, async (req, res) => {
     const { login, password, isReg } = req.body;
     try {
         let user = await User.findOne({ login });
         if (isReg) {
             if (user) return res.status(400).json({ error: "Логин занят" });
-            const hash = await bcrypt.hash(password, 7);
-            const uid = 'id' + Math.floor(1000 + Math.random() * 9000); // PeerJS любит буквы в начале
-            user = await User.create({ login, password: hash, uid });
+            const hashPassword = await bcrypt.hash(password, 7);
+            // Для звонков нужен чистый ID под капотом (без #)
+            const uid = 'id' + Math.floor(1000 + Math.random() * 9000);
+            user = new User({ login, password: hashPassword, uid });
+            await user.save();
         } else {
             if (!user || !(await bcrypt.compare(password, user.password))) {
                 return res.status(400).json({ error: "Ошибка входа" });
@@ -79,33 +100,37 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 app.get('/file/:id', (req, res) => {
+    if (!gfsBucket) return res.status(503).send("База не готова");
     try {
         const fileId = new mongoose.Types.ObjectId(req.params.id);
         gfsBucket.openDownloadStream(fileId).pipe(res);
     } catch(e) { res.status(404).send("Файл не найден"); }
 });
 
-// СОКЕТЫ
+// ЛОГИКАСОКЕТОВ
 io.on('connection', (socket) => {
     socket.on('join', async (room) => {
         socket.join(room);
-        const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean();
-        socket.emit('history', history);
+        if (mongoose.connection.readyState === 1) {
+            const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(50).lean();
+            socket.emit('history', history);
+        }
     });
 
     socket.on('message', async (data) => {
-        const m = await Msg.create(data);
+        const m = new Msg(data);
+        await m.save();
         io.to(data.room).emit('renderMsg', { ...data, _id: m._id });
     });
 
     socket.on('deleteMsg', async ({ id, room, fileId }) => {
         await Msg.findByIdAndDelete(id);
         if (fileId && gfsBucket) {
-            try { await gfsBucket.delete(new mongoose.Types.ObjectId(fileId)); } catch(e) {}
+            gfsBucket.delete(new mongoose.Types.ObjectId(fileId)).catch(() => {});
         }
         io.to(room).emit('msgDeleted', id);
     });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`🚀 Monolith started on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`🚀 MONOLITH UP ON PORT ${PORT}`));
