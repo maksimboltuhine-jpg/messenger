@@ -1,7 +1,7 @@
 {
-  "name": "messenger-v12-monolith",
-  "version": "12.2.0",
-  "description": "Chat + Files + Calls",
+  "name": "ultimate-system-v1",
+  "version": "1.0.0",
+  "description": "Chat + PeerJS Calls",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
