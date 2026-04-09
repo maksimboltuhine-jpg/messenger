@@ -16,7 +16,8 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
 // 2. PEERJS (Звонки)
-const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
+// ИСПРАВЛЕНИЕ: убран path: '/', так как он конфликтует с app.use('/peerjs')
+const peerServer = ExpressPeerServer(server, { debug: true });
 app.use('/peerjs', peerServer);
 
 // 3. БАЗОВЫЕ НАСТРОЙКИ
@@ -58,7 +59,6 @@ app.post('/auth', async (req, res) => {
       const exist = await User.findOne({ login });
       if (exist) return res.status(400).json({ error: 'Логин занят' });
       const hash = await bcrypt.hash(password, 10);
-      // Генерируем ЧИСТЫЙ ID (только буквы и цифры), чтобы PeerJS не ругался
       const uid = 'u' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
       await User.create({ login, password: hash, uid });
       return res.json({ login, uid });
@@ -84,7 +84,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   
   const writeStream = gfsBucket.openUploadStream(name, { contentType: req.file.mimetype });
   fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
-    fs.promises.unlink(req.file.path).catch(()=>{}); // удаляем временный файл
+    fs.promises.unlink(req.file.path).catch(()=>{}); 
     res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: name });
   });
 });
