@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ULTIMATE MESSENGER & CALLS</title>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<style>
+  :root { --green: #00ff88; --bg: #0a0a0a; --panel: #161616; --border: #333; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid var(--border); }
+  input, button { padding: 15px; border-radius: 12px; border: 1px solid var(--border); background: #000; color: #fff; outline: none; font-size: 16px; }
+  button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+  #app { display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 900px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--panel); }
+  #header { padding: 15px 20px; background: #000; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+  #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+  .m { background: #222; padding: 12px 16px; border-radius: 12px; max-width: 80%; width: fit-content; border: 1px solid #333; }
+  .m.me { align-self: flex-end; background: #0b2217; border-color: #11442b; }
+  .call-btn-small { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid var(--green); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  #input-area { padding: 15px; background: #000; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; position: relative; }
+  #pb-container { position: absolute; top: 0; left: 0; height: 3px; background: #222; width: 100%; }
+  #pb { height: 100%; width: 0%; background: var(--green); transition: 0.2s; }
+  #call-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+  .video-grid { position: relative; width: 95%; max-width: 1000px; aspect-ratio: 16/9; background: #0a0a0a; border-radius: 16px; overflow: hidden; border: 1px solid #333; }
+  #remote-video { width: 100%; height: 100%; object-fit: contain; }
+  #local-video { position: absolute; top: 20px; right: 20px; width: 120px; height: 160px; object-fit: cover; border-radius:12px; border: 2px solid var(--green); }
+  .call-controls { display: flex; gap: 15px; margin-top: 25px; }
+  .ctrl-btn { padding: 15px 25px; border-radius: 50px; border: none; background: #222; color: #fff; cursor: pointer; }
+  .ctrl-btn.danger { background: #ff3b3b; }
+</style>
+</head>
+<body>
+<div id="auth">
+  <div class="box">
+    <h2 style="text-align:center; color: var(--green);">СИСТЕМА</h2>
+    <input id="l" placeholder="Логин">
+    <input id="p" type="password" placeholder="Пароль">
+    <button onclick="logIn()">ВОЙТИ</button>
+    <div id="mode" style="text-align:center; cursor:pointer;" onclick="toggleReg()">Нет аккаунта? Регистрация</div>
+  </div>
+</div>
+<div id="app">
+  <div id="header">Чат <span id="my-id"></span></div>
+  <div id="msgs"></div>
+  <div id="input-area">
+    <div id="pb-container"><div id="pb"></div></div>
+    <button onclick="document.getElementById('fileInp').click()">📎</button>
+    <input type="file" id="fileInp" style="display:none">
+    <input id="txt" placeholder="Сообщение..." style="flex:1;" onkeypress="if(event.key==='Enter') sendMsg()">
+    <button onclick="sendMsg()">ОТПРАВИТЬ</button>
+  </div>
+</div>
+<div id="call-overlay">
+  <div id="call-status">Установка связи...</div>
+  <div class="video-grid">
+    <video id="remote-video" autoplay playsinline></video>
+    <video id="local-video" autoplay playsinline muted></video>
+  </div>
+  <div class="call-controls">
+    <button class="ctrl-btn danger" onclick="endCall()">✖ Сбросить</button>
+  </div>
+</div>
+<script>
+let isReg = false, my = JSON.parse(localStorage.getItem('sys_user')) || null;
+let socket, peer, localStream, currentCall;
+
+function toggleReg() {
+  isReg = !isReg;
+  document.querySelector('.box button').innerText = isReg ? 'РЕГИСТРАЦИЯ' : 'ВОЙТИ';
+}
+
+async function logIn() {
+  const l = document.getElementById('l').value, p = document.getElementById('p').value;
+  try {
+    const res = await fetch('/auth', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: l, password: p, isReg })
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    my = data;
+    localStorage.setItem('sys_user', JSON.stringify(my));
+    initSystem();
+  } catch(e) { alert("Сервер недоступен"); }
+}
+
+if (my) initSystem();
+
+function initSystem() {
+  document.getElementById('auth').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('my-id').innerText = '#' + my.uid;
+  socket = io();
+  socket.on('connect', () => socket.emit('join', 'MainRoom'));
+  socket.on('history', ms => { document.getElementById('msgs').innerHTML = ''; ms.forEach(addMsg); });
+  socket.on('message', addMsg);
+  peer = new Peer(my.uid, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
+  peer.on('call', handleIncomingCall);
+}
+
+function addMsg(m) {
+  const div = document.createElement('div');
+  div.className = `m ${m.uid === my.uid ? 'me' : ''}`;
+  div.innerHTML = `<b>${m.user}</b>: ${m.text}`;
+  document.getElementById('msgs').appendChild(div);
+  document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
+}
+
+async function sendMsg() {
+  const txt = document.getElementById('txt');
+  if (!txt.value.trim()) return;
+  socket.emit('message', { user: my.login, uid: my.uid, text: txt.value, room: 'MainRoom' });
+  txt.value = '';
+}
+
+async function handleIncomingCall(call) {
+  if (confirm("Входящий звонок!")) {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('local-video').srcObject = localStream;
+    document.getElementById('call-overlay').style.display = 'flex';
+    call.answer(localStream);
+    call.on('stream', s => document.getElementById('remote-video').srcObject = s);
+    currentCall = call;
+  }
+}
+
+function endCall() {
+  if (currentCall) currentCall.close();
+  location.reload();
+}
+</script>
+</body>
+</html>
