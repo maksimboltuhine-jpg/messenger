@@ -1,7 +1,6 @@
 {
-  "name": "ultimate-system-v1",
+  "name": "ultimate-messenger",
   "version": "1.0.0",
-  "description": "Chat + PeerJS Calls",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
