@@ -1,184 +1,155 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ULTIMATE MESSENGER</title>
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-<style>
-  :root { --green: #00ff88; --bg: #0a0a0a; --panel: #161616; --border: #333; }
-  * { box-sizing: border-box; font-family: sans-serif; }
-  body { margin: 0; background: var(--bg); color: #fff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-  
-  /* Вход */
-  #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
-  .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid var(--border); }
-  input, button { padding: 15px; border-radius: 12px; border: 1px solid var(--border); background: #000; color: #fff; outline: none; }
-  button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ULTIMATE SYSTEM</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root { --green: #00ff88; --bg: #0a0a0a; --panel: #161616; --border: #333; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid var(--border); }
+        input, button { padding: 15px; border-radius: 12px; border: 1px solid var(--border); background: #000; color: #fff; outline: none; }
+        button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; }
 
-  /* Основной интерфейс */
-  #app { display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 900px; margin: 0 auto; background: var(--panel); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-  #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .m { background: #222; padding: 12px; border-radius: 12px; max-width: 80%; border: 1px solid #333; }
-  .m.me { align-self: flex-end; background: #0b2217; border-color: #11442b; }
-  
-  #input-area { padding: 15px; background: #000; display: flex; gap: 10px; border-top: 1px solid var(--border); position: relative; }
-  #pb { position: absolute; top: 0; left: 0; height: 2px; background: var(--green); width: 0%; transition: 0.2s; }
+        #app { display: none; flex-direction: column; height: 100vh; }
+        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .m { background: #222; padding: 10px; border-radius: 12px; max-width: 80%; width: fit-content; }
+        .m.me { align-self: flex-end; background: #0b2217; }
 
-  /* Звонки */
-  #call-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
-  .video-grid { width: 90%; max-width: 800px; aspect-ratio: 16/9; position: relative; background: #000; border-radius: 15px; overflow: hidden; }
-  #remote-video { width: 100%; height: 100%; object-fit: cover; }
-  #local-video { position: absolute; top: 10px; right: 10px; width: 120px; border: 2px solid var(--green); border-radius: 8px; }
-  .call-btns { display: flex; gap: 15px; margin-top: 20px; }
-  .btn-c { padding: 12px 20px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; }
-  .drop { background: #ff3b3b; color: #fff; }
-</style>
+        #input-area { padding: 15px; background: #000; display: flex; gap: 10px; border-top: 1px solid var(--border); position: relative; }
+        #pb { position: absolute; top: 0; left: 0; height: 2px; background: var(--green); width: 0%; }
+
+        #call-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        video { width: 100%; max-width: 600px; border-radius: 15px; background: #000; }
+        #local-video { width: 120px; position: absolute; top: 20px; right: 20px; border: 2px solid var(--green); }
+    </style>
 </head>
 <body>
 
 <div id="auth">
-  <div class="box">
-    <h2 style="text-align:center; color: var(--green); margin:0;">СИСТЕМА</h2>
-    <input id="l" placeholder="Логин">
-    <input id="p" type="password" placeholder="Пароль">
-    <button onclick="logIn()">ВОЙТИ</button>
-    <div id="mode-text" style="text-align:center; cursor:pointer; font-size:12px; color:#888;" onclick="toggleReg()">Нет аккаунта? Регистрация</div>
-  </div>
+    <div class="box">
+        <h2 style="text-align:center; color: var(--green);">СИСТЕМА</h2>
+        <input id="l" placeholder="Логин">
+        <input id="p" type="password" placeholder="Пароль">
+        <button id="auth-btn" onclick="handleAuth()">ВОЙТИ</button>
+        <p id="toggle-mode" style="font-size:12px; text-align:center; cursor:pointer;" onclick="toggleReg()">Нет аккаунта? Регистрация</p>
+    </div>
 </div>
 
 <div id="app">
-  <div style="padding:15px; background:#000; display:flex; justify-content:space-between; border-bottom:1px solid var(--border);">
-    <span style="font-weight:bold">MESSENGER</span>
-    <span id="my-id" style="color:var(--green); font-family:monospace;"></span>
-  </div>
-  <div id="msgs"></div>
-  <div id="input-area">
-    <div id="pb"></div>
-    <button onclick="document.getElementById('f').click()" style="background:#222; color:#fff;">📎</button>
-    <input type="file" id="f" style="display:none">
-    <input id="txt" style="flex:1" placeholder="Введите сообщение..." onkeypress="if(event.key==='Enter') sendMsg()">
-    <button onclick="sendMsg()"»</button>
-  </div>
+    <div style="padding:15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">
+        <b id="user-display">MESSENGER</b>
+        <span id="my-uid" style="color:var(--green)"></span>
+    </div>
+    <div id="msgs"></div>
+    <div id="input-area">
+        <div id="pb"></div>
+        <button onclick="document.getElementById('file-inp').click()">📎</button>
+        <input type="file" id="file-inp" style="display:none">
+        <input id="msg-inp" style="flex:1" placeholder="Сообщение...">
+        <button onclick="sendMsg()"»</button>
+    </div>
 </div>
 
-<div id="call-overlay">
-  <div id="call-info" style="margin-bottom:15px; font-weight:bold;">Вызов...</div>
-  <div class="video-grid">
+<div id="call-ui">
     <video id="remote-video" autoplay playsinline></video>
     <video id="local-video" autoplay playsinline muted></video>
-  </div>
-  <div class="call-btns">
-    <button class="btn-c" onclick="toggleMic()">🎤</button>
-    <button class="btn-c" onclick="toggleCam()">📷</button>
-    <button class="btn-c drop" onclick="endCall()">ЗАВЕРШИТЬ</button>
-  </div>
+    <button onclick="endCall()" style="background:#ff3b3b; margin-top:20px;">СБРОСИТЬ</button>
 </div>
 
 <script>
-let isReg = false, my = JSON.parse(localStorage.getItem('sys_user')), socket, peer, localStream, currentCall;
+let isReg = false, my = null, socket, peer, localStream, currentCall;
 
 function toggleReg() {
-  isReg = !isReg;
-  document.querySelector('.box button').innerText = isReg ? 'РЕГИСТРАЦИЯ' : 'ВОЙТИ';
-  document.getElementById('mode-text').innerText = isReg ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация';
+    isReg = !isReg;
+    document.getElementById('auth-btn').innerText = isReg ? 'РЕГИСТРАЦИЯ' : 'ВОЙТИ';
+    document.getElementById('toggle-mode').innerText = isReg ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация';
 }
 
-async function logIn() {
-  const login = document.getElementById('l').value, password = document.getElementById('p').value;
-  if(!login || !password) return alert("Заполни поля!");
-  const res = await fetch('/auth', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ login, password, isReg })
-  });
-  const data = await res.json();
-  if(data.error) return alert(data.error);
-  my = data;
-  localStorage.setItem('sys_user', JSON.stringify(my));
-  location.reload();
+async function handleAuth() {
+    const login = document.getElementById('l').value;
+    const password = document.getElementById('p').value;
+    const res = await fetch('/auth', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ login, password, isReg })
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    my = data;
+    startApp();
 }
 
-if(my) initApp();
+function startApp() {
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('my-uid').innerText = '#' + my.uid;
 
-function initApp() {
-  document.getElementById('auth').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
-  document.getElementById('my-id').innerText = '#' + my.uid;
+    socket = io();
+    socket.emit('join', 'MainRoom');
+    socket.on('history', h => h.forEach(addMsg));
+    socket.on('message', addMsg);
 
-  socket = io();
-  socket.on('connect', () => socket.emit('join', 'MainRoom'));
-  socket.on('history', h => { document.getElementById('msgs').innerHTML=''; h.forEach(addMsg); scroll(); });
-  socket.on('message', m => { addMsg(m); scroll(); });
-
-  peer = new Peer(my.uid, { host: location.hostname, port: location.port || (location.protocol === 'https:' ? 443 : 80), path: '/peerjs', secure: location.protocol === 'https:' });
-  
-  peer.on('call', async call => {
-    if(confirm("Входящий звонок от #" + call.peer)) {
-      localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-      document.getElementById('local-video').srcObject = localStream;
-      document.getElementById('call-overlay').style.display = 'flex';
-      call.answer(localStream);
-      currentCall = call;
-      call.on('stream', s => document.getElementById('remote-video').srcObject = s);
-    }
-  });
+    peer = new Peer(my.uid, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
+    peer.on('call', async call => {
+        if (confirm("Входящий звонок?")) {
+            localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            document.getElementById('local-video').srcObject = localStream;
+            document.getElementById('call-ui').style.display = 'flex';
+            call.answer(localStream);
+            call.on('stream', s => document.getElementById('remote-video').srcObject = s);
+            currentCall = call;
+        }
+    });
 }
 
 async function sendMsg() {
-  const txt = document.getElementById('txt'), fInp = document.getElementById('f'), pb = document.getElementById('pb');
-  let fileData = null;
-  if(fInp.files[0]) {
-    const fd = new FormData();
-    fd.append('file', fInp.files[0]);
-    fileData = await new Promise(r => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/upload');
-      xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
-      xhr.onload = () => { pb.style.width='0%'; r(JSON.parse(xhr.responseText)); };
-      xhr.send(fd);
-    });
-    fInp.value = '';
-  }
-  if(!txt.value && !fileData) return;
-  socket.emit('message', { user: my.login, uid: my.uid, text: txt.value, room: 'MainRoom', fileUrl: fileData?.fileUrl, fileType: fileData?.fileType, fileName: fileData?.fileName });
-  txt.value = '';
+    const inp = document.getElementById('msg-inp'), fInp = document.getElementById('file-inp'), pb = document.getElementById('pb');
+    let fileData = null;
+    if (fInp.files[0]) {
+        const fd = new FormData();
+        fd.append('file', fInp.files[0]);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload', true);
+        xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
+        fileData = await new Promise(r => {
+            xhr.onload = () => { pb.style.width = '0%'; r(JSON.parse(xhr.responseText)); };
+            xhr.send(fd);
+        });
+        fInp.value = '';
+    }
+    if (!inp.value && !fileData) return;
+    socket.emit('message', { user: my.login, uid: my.uid, text: inp.value, room: 'MainRoom', fileUrl: fileData?.fileUrl, fileName: fileData?.fileName });
+    inp.value = '';
 }
 
 function addMsg(m) {
-  const div = document.createElement('div');
-  const isMe = m.uid === my.uid;
-  div.className = `m ${isMe ? 'me' : ''}`;
-  let html = `<div style="font-size:10px; color:var(--green)">${m.user} #${m.uid} ${!isMe ? `<button onclick="startCall('${m.uid}')" style="background:none; border:none; color:var(--green); cursor:pointer;">📞</button>` : ''}</div>`;
-  if(m.text) html += `<div>${m.text}</div>`;
-  if(m.fileUrl) {
-    if(m.fileType?.startsWith('image/')) html += `<img src="${m.fileUrl}" style="max-width:100%; border-radius:8px; margin-top:5px;">`;
-    else html += `<a href="${m.fileUrl}" target="_blank" style="color:var(--green); display:block; margin-top:5px;">📎 ${m.fileName}</a>`;
-  }
-  div.innerHTML = html;
-  document.getElementById('msgs').appendChild(div);
+    const div = document.createElement('div');
+    div.className = `m ${m.uid === my.uid ? 'me' : ''}`;
+    let content = `<small>${m.user} #${m.uid}</small> <button onclick="startCall('${m.uid}')">📞</button>
+`;
+    if (m.text) content += `<span>${m.text}</span>`;
+    if (m.fileUrl) content += `
+<a href="${m.fileUrl}" target="_blank" style="color:var(--green)">📎 ${m.fileName}</a>`;
+    div.innerHTML = content;
+    document.getElementById('msgs').appendChild(div);
+    document.getElementById('msgs').scrollTop = 99999;
 }
 
 async function startCall(id) {
-  localStream =
-
-
-await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-  document.getElementById('local-video').srcObject = localStream;
-  document.getElementById('call-overlay').style.display = 'flex';
-  currentCall = peer.call(id, localStream);
-  currentCall.on('stream', s => document.getElementById('remote-video').srcObject = s);
+    localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+    document.getElementById('local-video').srcObject = localStream;
+    document.getElementById('call-ui').style.display = 'flex';
+    currentCall = peer.call(id, localStream);
+    currentCall.on('stream', s => document.getElementById('remote-video').srcObject = s);
 }
 
 function endCall() {
-  if(currentCall) currentCall.close();
-  if(localStream) localStream.getTracks().forEach(t => t.stop());
-  location.reload();
+    location.reload();
 }
-
-function toggleMic() { localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; }
-function toggleCam() { localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; }
-function scroll() { const d = document.getElementById('msgs'); d.scrollTop = d.scrollHeight; }
 </script>
 </body>
 </html>
