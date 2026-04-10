@@ -1,7 +1,6 @@
 {
-  "name": "ultimate-system",
-  "version": "1.1.0",
-  "description": "Messenger with Video Calls",
+  "name": "ultimate-messenger",
+  "version": "1.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
