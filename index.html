@@ -3,73 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ULTIMATE SYSTEM</title>
+<title>ULTIMATE MESSENGER</title>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <style>
   :root { --green: #00ff88; --bg: #0a0a0a; --panel: #161616; --border: #333; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  * { box-sizing: border-box; font-family: sans-serif; }
+  body { margin: 0; background: var(--bg); color: #fff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
   
+  /* Вход */
   #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
   .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 320px; display: flex; flex-direction: column; gap: 15px; border: 1px solid var(--border); }
   input, button { padding: 15px; border-radius: 12px; border: 1px solid var(--border); background: #000; color: #fff; outline: none; }
   button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; }
-  
-  #app { display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 900px; margin: 0 auto; background: var(--panel); border: 1px solid var(--border); }
+
+  /* Основной интерфейс */
+  #app { display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 900px; margin: 0 auto; background: var(--panel); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
   #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-  .m { background: #222; padding: 10px 15px; border-radius: 12px; max-width: 80%; width: fit-content; border: 1px solid #333; }
+  .m { background: #222; padding: 12px; border-radius: 12px; max-width: 80%; border: 1px solid #333; }
   .m.me { align-self: flex-end; background: #0b2217; border-color: #11442b; }
   
   #input-area { padding: 15px; background: #000; display: flex; gap: 10px; border-top: 1px solid var(--border); position: relative; }
   #pb { position: absolute; top: 0; left: 0; height: 2px; background: var(--green); width: 0%; transition: 0.2s; }
 
-  #call-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
-  .video-grid { width: 90%; max-width: 800px; aspect-ratio: 16/9; position: relative; background: #000; }
-  #remote-video { width: 100%; height: 100%; }
-  #local-video { position: absolute; top: 10px; right: 10px; width: 120px; border: 2px solid var(--green); }
-  .controls { display: flex; gap: 10px; margin-top: 20px; }
-  .c-btn { padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; }
-  .danger { background: #ff3b3b; color: #fff; }
+  /* Звонки */
+  #call-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+  .video-grid { width: 90%; max-width: 800px; aspect-ratio: 16/9; position: relative; background: #000; border-radius: 15px; overflow: hidden; }
+  #remote-video { width: 100%; height: 100%; object-fit: cover; }
+  #local-video { position: absolute; top: 10px; right: 10px; width: 120px; border: 2px solid var(--green); border-radius: 8px; }
+  .call-btns { display: flex; gap: 15px; margin-top: 20px; }
+  .btn-c { padding: 12px 20px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; }
+  .drop { background: #ff3b3b; color: #fff; }
 </style>
 </head>
 <body>
 
 <div id="auth">
   <div class="box">
-    <h2 style="text-align:center; color: var(--green);">СИСТЕМА</h2>
+    <h2 style="text-align:center; color: var(--green); margin:0;">СИСТЕМА</h2>
     <input id="l" placeholder="Логин">
     <input id="p" type="password" placeholder="Пароль">
     <button onclick="logIn()">ВОЙТИ</button>
-    <div id="mode" style="text-align:center; cursor:pointer; font-size:12px;" onclick="toggleReg()">Нет аккаунта? Регистрация</div>
+    <div id="mode-text" style="text-align:center; cursor:pointer; font-size:12px; color:#888;" onclick="toggleReg()">Нет аккаунта? Регистрация</div>
   </div>
 </div>
 
 <div id="app">
   <div style="padding:15px; background:#000; display:flex; justify-content:space-between; border-bottom:1px solid var(--border);">
-    <span>Messenger</span>
-    <span id="my-id" style="color:var(--green)"></span>
+    <span style="font-weight:bold">MESSENGER</span>
+    <span id="my-id" style="color:var(--green); font-family:monospace;"></span>
   </div>
   <div id="msgs"></div>
   <div id="input-area">
     <div id="pb"></div>
-    <button onclick="document.getElementById('f').click()">📎</button>
+    <button onclick="document.getElementById('f').click()" style="background:#222; color:#fff;">📎</button>
     <input type="file" id="f" style="display:none">
-    <input id="txt" style="flex:1" placeholder="Сообщение..." onkeypress="if(event.key==='Enter') sendMsg()">
-    <button onclick="sendMsg()">ОТПРАВИТЬ</button>
+    <input id="txt" style="flex:1" placeholder="Введите сообщение..." onkeypress="if(event.key==='Enter') sendMsg()">
+    <button onclick="sendMsg()"»</button>
   </div>
 </div>
 
 <div id="call-overlay">
-  <div id="status" style="margin-bottom:10px">Связь...</div>
+  <div id="call-info" style="margin-bottom:15px; font-weight:bold;">Вызов...</div>
   <div class="video-grid">
     <video id="remote-video" autoplay playsinline></video>
     <video id="local-video" autoplay playsinline muted></video>
   </div>
-  <div class="controls">
-    <button class="c-btn" onclick="toggleMic()">Микро</button>
-    <button class="c-btn" onclick="toggleCam()">Камера</button>
-    <button class="c-btn danger" onclick="endCall()">СБРОСИТЬ</button>
+  <div class="call-btns">
+    <button class="btn-c" onclick="toggleMic()">🎤</button>
+    <button class="btn-c" onclick="toggleCam()">📷</button>
+    <button class="btn-c drop" onclick="endCall()">ЗАВЕРШИТЬ</button>
   </div>
 </div>
 
@@ -79,108 +82,92 @@ let isReg = false, my = JSON.parse(localStorage.getItem('sys_user')), socket, pe
 function toggleReg() {
   isReg = !isReg;
   document.querySelector('.box button').innerText = isReg ? 'РЕГИСТРАЦИЯ' : 'ВОЙТИ';
-  document.getElementById('mode').innerText = isReg ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация';
+  document.getElementById('mode-text').innerText = isReg ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация';
 }
 
 async function logIn() {
-  const login = document.getElementById('l').value;
-  const password = document.getElementById('p').value;
-  if(!login || !password) return alert("Заполни поля");
-  try {
-    const res = await fetch('/auth', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ login, password, isReg })
-    });
-    const data = await res.json();
-    if(data.error) return alert(data.error);
-    my = data;
-    localStorage.setItem('sys_user', JSON.stringify(my));
-    initSystem();
-  } catch(e) { alert("Ошибка сервера"); }
+  const login = document.getElementById('l').value, password = document.getElementById('p').value;
+  if(!login || !password) return alert("Заполни поля!");
+  const res = await fetch('/auth', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ login, password, isReg })
+  });
+  const data = await res.json();
+  if(data.error) return alert(data.error);
+  my = data;
+  localStorage.setItem('sys_user', JSON.stringify(my));
+  location.reload();
 }
 
-if(my) initSystem();
+if(my) initApp();
 
-function initSystem() {
+function initApp() {
   document.getElementById('auth').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('my-id').innerText = '#' + my.uid;
 
   socket = io();
   socket.on('connect', () => socket.emit('join', 'MainRoom'));
-  socket.on('history', h => { document.getElementById('msgs').innerHTML = ''; h.forEach(addMsg); scrollToBottom(); });
-  socket.on('message', m => { addMsg(m); scrollToBottom(); });
+  socket.on('history', h => { document.getElementById('msgs').innerHTML=''; h.forEach(addMsg); scroll(); });
+  socket.on('message', m => { addMsg(m); scroll(); });
 
-  peer = new Peer(my.uid, { host: location.hostname, port: location.port || 443, path: '/peerjs', secure: true });
+  peer = new Peer(my.uid, { host: location.hostname, port: location.port || (location.protocol === 'https:' ? 443 : 80), path: '/peerjs', secure: location.protocol === 'https:' });
+  
   peer.on('call', async call => {
     if(confirm("Входящий звонок от #" + call.peer)) {
       localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
       document.getElementById('local-video').srcObject = localStream;
       document.getElementById('call-overlay').style.display = 'flex';
       call.answer(localStream);
-      setupCall(call);
+      currentCall = call;
+      call.on('stream', s => document.getElementById('remote-video').srcObject = s);
     }
   });
 }
 
 async function sendMsg() {
   const txt = document.getElementById('txt'), fInp = document.getElementById('f'), pb = document.getElementById('pb');
-  if(!txt.value.trim() && !fInp.files[0]) return;
-
   let fileData = null;
   if(fInp.files[0]) {
     const fd = new FormData();
     fd.append('file', fInp.files[0]);
-    fileData = await new Promise((res) => {
+    fileData = await new Promise(r => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/upload');
-      xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100) + '%';
-      xhr.onload = () => { pb.style.width = '0%'; res(JSON.parse(xhr.responseText)); };
+      xhr.upload.onprogress = e => pb.style.width = (e.loaded/e.total*100)+'%';
+      xhr.onload = () => { pb.style.width='0%'; r(JSON.parse(xhr.responseText)); };
       xhr.send(fd);
     });
     fInp.value = '';
   }
-
-  socket.emit('message', {
-    user: my.login, uid: my.uid, text: txt.value, room: 'MainRoom',
-    fileUrl: fileData?.fileUrl, fileType: fileData?.fileType, fileName: fileData?.fileName
-  });
+  if(!txt.value && !fileData) return;
+  socket.emit('message', { user: my.login, uid: my.uid, text: txt.value, room: 'MainRoom', fileUrl: fileData?.fileUrl, fileType: fileData?.fileType, fileName: fileData?.fileName });
   txt.value = '';
 }
 
 function addMsg(m) {
-  const area = document.getElementById('msgs');
   const div = document.createElement('div');
   const isMe = m.uid === my.uid;
   div.className = `m ${isMe ? 'me' : ''}`;
-  
-  let content = `<div style="font-size:10px; color:#888;">${m.user} #${m.uid} ${!isMe ? `<button onclick="startCall('${m.uid}')">📞</button>` : ''}</div>`;
-  if(m.text) content += `<div>${m.text}</div>`;
+  let html = `<div style="font-size:10px; color:var(--green)">${m.user} #${m.uid} ${!isMe ? `<button onclick="startCall('${m.uid}')" style="background:none; border:none; color:var(--green); cursor:pointer;">📞</button>` : ''}</div>`;
+  if(m.text) html += `<div>${m.text}</div>`;
   if(m.fileUrl) {
-    if(m.fileType?.startsWith('image/')) content += `<img src="${m.fileUrl}" style="max-width:200px; border-radius:8px; margin-top:5px;">`;
-    else content += `<a href="${m.fileUrl}" target="_blank" style="color:var(--green); display:block; margin-top:5px;">📎 ${m.fileName}</a>`;
+    if(m.fileType?.startsWith('image/')) html += `<img src="${m.fileUrl}" style="max-width:100%; border-radius:8px; margin-top:5px;">`;
+    else html += `<a href="${m.fileUrl}" target="_blank" style="color:var(--green); display:block; margin-top:5px;">📎 ${m.fileName}</a>`;
   }
-  div.innerHTML = content;
-  area.appendChild(div);
+  div.innerHTML = html;
+  document.getElementById('msgs').appendChild(div);
 }
-
-function scrollToBottom() { const msgs = document.getElementById('msgs'); msgs.scrollTop = msgs.scrollHeight; }
 
 async function startCall(id) {
-  localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+  localStream =
+
+
+await navigator.mediaDevices.getUserMedia({video: true, audio: true});
   document.getElementById('local-video').srcObject = localStream;
   document.getElementById('call-overlay').style.display = 'flex';
-  const call = peer.call(id, localStre
-
-
-am);
-  if(call) setupCall(call);
-}
-
-function setupCall(call) {
-  currentCall = call;
-  call.on('stream', s => document.getElementById('remote-video').srcObject = s);
-  call.on('close', endCall);
+  currentCall = peer.call(id, localStream);
+  currentCall.on('stream', s => document.getElementById('remote-video').srcObject = s);
 }
 
 function endCall() {
@@ -189,10 +176,9 @@ function endCall() {
   location.reload();
 }
 
-function toggleMic() { if(localStream) localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; }
-function toggleCam() { if(localStream) localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; }
+function toggleMic() { localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; }
+function toggleCam() { localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; }
+function scroll() { const d = document.getElementById('msgs'); d.scrollTop = d.scrollHeight; }
 </script>
 </body>
 </html>
-
-
