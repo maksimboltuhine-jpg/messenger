@@ -16,11 +16,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
 // 2. PEERJS (Звонки)
-const peerServer = ExpressPeerServer(server, { 
-  debug: true, 
-  path: '/',
-  ssl: false 
-});
+const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
 // 3. БАЗОВЫЕ НАСТРОЙКИ

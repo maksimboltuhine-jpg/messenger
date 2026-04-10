@@ -28,13 +28,13 @@
   #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
   .m { background: #222; padding: 12px 16px; border-radius: 12px; max-width: 80%; width: fit-content; border: 1px solid #333; position: relative; }
   .m.me { align-self: flex-end; background: #0b2217; border-color: #11442b; }
-  .u { font-size: 12px; color: #aaa; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .u { font-size: 12px; color: #aaa; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
   .uid-badge { background: #000; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #888; }
   
   .call-btn-small { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid var(--green); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px;}
   .call-btn-small:hover { background: var(--green); color: #000; }
   
-  .img-preview { max-width: 250px; border-radius: 8px; margin-top: 8px; display: block; border: 1px solid #444; cursor: pointer; }
+  .img-preview { max-width: 250px; border-radius: 8px; margin-top: 8px; display: block; border: 1px solid #444; }
   .file-link { display: inline-block; margin-top: 8px; color: var(--green); text-decoration: none; padding: 8px 12px; background: #000; border-radius: 8px; border: 1px solid #333; font-size: 14px;}
   
   #input-area { padding: 15px; background: #000; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; position: relative; }
@@ -47,11 +47,10 @@
   #remote-video { width: 100%; height: 100%; object-fit: contain; }
   #local-video { position: absolute; top: 20px; right: 20px; width: 120px; height: 160px; object-fit: cover; border-radius:12px; border: 2px solid var(--green); background: #222; z-index: 10; }
   
-  .call-controls { display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap; justify-content: center; }
-  .ctrl-btn { padding: 15px 25px; border-radius: 50px; border: none; background: #222; color: #fff; cursor: pointer; font-size: 16px; font-weight: bold; border: 1px solid #444; transition: 0.2s; }
+  .call-controls { display: flex; gap: 15px; margin-top: 25px; }
+  .ctrl-btn { padding: 15px 25px; border-radius: 50px; border: none; background: #222; color: #fff; cursor: pointer; font-size: 16px; font-weight: bold; border: 1px solid #444; }
   .ctrl-btn.active { background: var(--green); color: #000; border-color: var(--green); }
   .ctrl-btn.danger { background: #ff3b3b; color: #fff; border-color: #ff3b3b; }
-  .ctrl-btn:hover { transform: scale(0.98); opacity: 0.9; }
 </style>
 </head>
 <body>
@@ -90,10 +89,10 @@
     <video id="local-video" autoplay playsinline muted></video>
   </div>
   <div class="call-controls">
-    <button class="ctrl-btn active" id="mic-btn" onclick="toggleMic()">🎤 Микрофон</button>
+    <button class="ctrl-btn active" id="mic-btn" onclick="toggleMic()">🎤 Микро</button>
     <button class="ctrl-btn active" id="cam-btn" onclick="toggleCam()">📷 Камера</button>
-    <button class="ctrl-btn" id="screen-btn" onclick="toggleScreen()">🖥 Демонстрация</button>
-    <button class="ctrl-btn danger" onclick="endCall()">✖ Завершить</button>
+    <button class="ctrl-btn" id="screen-btn" onclick="toggleScreen()">🖥 Демка</button>
+    <button class="ctrl-btn danger" onclick="endCall()">✖ Сбросить</button>
   </div>
 </div>
 
@@ -106,7 +105,6 @@ let my = JSON.parse(localStorage.getItem('sys_user')) || null;
 let socket;
 // Звонки
 let peer, localStream, remoteStream, currentCall, screenStream;
-let peerReady = false;
 
 // --- АВТОРИЗАЦИЯ ---
 function toggleReg() {
@@ -117,7 +115,7 @@ function toggleReg() {
 
 async function logIn() {
   const l = document.getElementById('l').value, p = document.getElementById('p').value;
-  if (!l || !p) return alert("Заполните поля");
+  if (!l || !p) return alert("Заполни поля");
   try {
     const res = await fetch('/auth', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -148,10 +146,13 @@ function initSystem() {
   });
   
   socket.on('disconnect', () => {
-    document.getElementById('header').style.borderBottom = "2px solid #ff3b3b";
+    document.getElementById('header').style.borderBottom = "2px solid #ff3b3b"; // Индикатор дисконнекта
   });
 
-  socket.on('history', ms => {
+  socket.on
+
+
+('history', ms => {
     document.getElementById('msgs').innerHTML = '';
     ms.forEach(addMsg);
     scrollToBottom();
@@ -167,26 +168,10 @@ function initSystem() {
     host: window.location.hostname,
     port: window.location.port || (window.location.protocol === 'https:' ? 443 : 80),
     path: '/peerjs',
-    secure: window.location.protocol === 'https:',
-    debug: 3
+    secure: window.location.protocol === 'https:'
   });
 
-  peer.on('open', id => {
-    console.log('✅ PeerJS готов. ID:', id);
-    peerReady = true;
-  });
-  
-  peer.on('error', err => {
-    console.error('PeerJS ошибка:', err);
-    if (err.type === 'peer-unavailable') {
-      alert('Пользователь недоступен для звонка');
-    } else if (err.type === 'network') {
-      alert('Ошибка сети. Проверьте подключение');
-    } else {
-      alert('Ошибка звонков: ' + err.message);
-    }
-  });
-  
+  peer.on('open', id => console.log('✅ PeerJS готов. ID:', id));
   peer.on('call', handleIncomingCall);
 }
 
@@ -232,27 +217,17 @@ function addMsg(m) {
   // Кнопка звонка рендерится ТОЛЬКО для чужих сообщений
   const callBtn = !isMe ? `<button class="call-btn-small" onclick="startCall('${m.uid}')" title="Позвонить">📞 Позвонить</button>` : '';
   
-  let html = `<div class="u"><b>${escapeHtml(m.user)}</b> <span class="uid-badge">#${m.uid}</span> ${callBtn}</div>`;
-  if (m.text) html += `<div>${escapeHtml(m.text)}</div>`;
+  let html = `<div class="u"><b>${m.user}</b> <span class="uid-badge">#${m.uid}</span> ${callBtn}</div>`;
+  if (m.text) html += `<div>${m.text}</div>`;
   
   if (m.fileUrl) {
-    if (m.fileType && m.fileType.startsWith('image/')) html += `<img src="${m.fileUrl}" class="img-preview" onclick="window.open('${m.fileUrl}')">`;
-    else if (m.fileType && m.fileType.startsWith('video/')) html += `<video src="${m.fileUrl}" controls class="img-preview"></video>`;
-    else html += `<a href="${m.fileUrl}" download="${m.fileName || 'file'}" class="file-link">💾 ${m.fileName || 'Скачать файл'}</a>`;
+    if (m.fileType.startsWith('image/')) html += `<img src="${m.fileUrl}" class="img-preview" onclick="window.open('${m.fileUrl}')">`;
+    else if (m.fileType.startsWith('video/')) html += `<video src="${m.fileUrl}" controls class="img-preview"></video>`;
+    else html += `<a href="${m.fileUrl}" download="${m.fileName}" class="file-link">💾 ${m.fileName}</a>`;
   }
   
   div.innerHTML = html;
   area.appendChild(div);
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/[&<>]/g, function(m) {
-    if (m === '&') return '&amp;';
-    if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;';
-    return m;
-  });
 }
 
 function scrollToBottom() {
@@ -260,56 +235,34 @@ function scrollToBottom() {
   area.scrollTop = area.scrollHeight;
 }
 
-// --- ЛОГИКА ЗВОНКОВ ---
+// --- ЛОГИКА ЗВОНКОВ (Встроено идеально) ---
 async function initMedia() {
   if (!localStream) {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       document.getElementById('local-video').srcObject = localStream;
-    } catch(e) {
-      console.error("Ошибка доступа к медиа:", e);
-      alert("Нет доступа к камере/микрофону!");
-      throw e;
-    }
+    } catch(e) { alert("Нет доступа к камере/микрофону!"); throw e; }
   }
-  return localStream;
 }
 
 async function startCall(targetUid) {
-  if (!peerReady) {
-    alert("Система звонков ещё не готова. Подождите пару секунд и попробуйте снова.");
-    return;
-  }
-  if (targetUid === my.uid) {
-    alert("Нельзя позвонить самому себе");
-    return;
-  }
-  try {
-    await initMedia();
-    document.getElementById('call-overlay').style.display = 'flex';
-    document.getElementById('call-status').innerText = `Звонок пользователю #${targetUid}...`;
-    currentCall = peer.call(targetUid, localStream);
-    setupCallEvents(currentCall);
-  } catch (e) {
-    alert("Не удалось начать звонок: " + e.message);
-    closeCallUI();
-  }
+  await initMedia();
+  document.getElementById('call-overlay').style.display = 'flex';
+  document.getElementById('call-status').innerText = `Звонок пользователю #${targetUid}...`;
+  
+  // Звоним по чистому UID
+  currentCall = peer.call(targetUid, localStream);
+  setupCallEvents(currentCall);
 }
 
 async function handleIncomingCall(call) {
-  const answer = confirm(`📞 Входящий звонок от #${call.peer}! Ответить?`);
-  if (answer) {
-    try {
-      await initMedia();
-      document.getElementById('call-overlay').style.display = 'flex';
-      document.getElementById('call-status').innerText = `Разговор с #${call.peer}`;
-      currentCall = call;
-      call.answer(localStream);
-      setupCallEvents(call);
-    } catch (e) {
-      alert("Не удалось ответить: " + e.message);
-      call.close();
-    }
+  if(confirm(`Входящий звонок от #${call.peer}! Ответить?`)) {
+    await initMedia();
+    document.getElementById('call-overlay').style.display = 'flex';
+    document.getElementById('call-status').innerText = `Разговор с #${call.peer}`;
+    currentCall = call;
+    call.answer(localStream);
+    setupCallEvents(call);
   } else {
     call.close();
   }
@@ -318,115 +271,73 @@ async function handleIncomingCall(call) {
 function setupCallEvents(call) {
   call.on('stream', stream => {
     remoteStream = stream;
-    document.getElementById('remote-video').srcObject = stream;
-    document.getElementById('call-status').innerText = "📞 В разговоре";
+    document.getElementById('remote-video').srcObject =
+
+
+stream;
+    document.getElementById('call-status').innerText = "На связи";
   });
-  call.on('close', () => {
-    console.log("Звонок завершен");
-    closeCallUI();
-  });
-  call.on('error', err => {
-    console.error("Ошибка звонка:", err);
-    alert("Ошибка связи: " + err.message);
-    closeCallUI();
-  });
+  call.on('close', closeCallUI);
+  call.on('error', err => { alert("Ошибка связи"); closeCallUI(); });
 }
 
 function endCall() {
-  if (currentCall) {
-    currentCall.close();
-    currentCall = null;
-  }
+  if (currentCall) currentCall.close();
   closeCallUI();
 }
 
 function closeCallUI() {
   document.getElementById('call-overlay').style.display = 'none';
-  
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
-    localStream = null;
-  }
-  if (screenStream) {
-    screenStream.getTracks().forEach(t => t.stop());
-    screenStream = null;
-  }
-  
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
   document.getElementById('remote-video').srcObject = null;
   document.getElementById('local-video').srcObject = null;
   currentCall = null;
   
   // Сбрасываем кнопки
-  const micBtn = document.getElementById('mic-btn');
-  const camBtn = document.getElementById('cam-btn');
-  const screenBtn = document.getElementById('screen-btn');
-  if (micBtn) micBtn.classList.add('active');
-  if (camBtn) camBtn.classList.add('active');
-  if (screenBtn) screenBtn.classList.remove('active');
+  document.getElementById('mic-btn').classList.add('active');
+  document.getElementById('cam-btn').classList.add('active');
+  document.getElementById('screen-btn').classList.remove('active');
 }
 
 // --- ПЕРЕКЛЮЧАТЕЛИ УСТРОЙСТВ ---
 function toggleMic() {
   if(!localStream) return;
   const track = localStream.getAudioTracks()[0];
-  if (track) {
-    track.enabled = !track.enabled;
-    const btn = document.getElementById('mic-btn');
-    btn.classList.toggle('active', track.enabled);
-    btn.innerHTML = track.enabled ? '🎤 Микрофон' : '🔇 Микрофон выкл';
-  }
+  track.enabled = !track.enabled;
+  document.getElementById('mic-btn').classList.toggle('active', track.enabled);
 }
 
 function toggleCam() {
   if(!localStream) return;
   const track = localStream.getVideoTracks()[0];
-  if (track) {
-    track.enabled = !track.enabled;
-    const btn = document.getElementById('cam-btn');
-    btn.classList.toggle('active', track.enabled);
-    btn.innerHTML = track.enabled ? '📷 Камера' : '📷 Камера выкл';
-  }
+  track.enabled = !track.enabled;
+  document.getElementById('cam-btn').classList.toggle('active', track.enabled);
 }
 
 async function toggleScreen() {
-  if (!currentCall) {
-    alert("Нет активного звонка");
-    return;
-  }
-  
+  if (!currentCall) return;
   const btn = document.getElementById('screen-btn');
-  const videoSender = currentCall.peerConnection?.getSenders().find(s => s.track?.kind === 'video');
+  const videoSender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
   
   if (!screenStream) {
     try {
       screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const screenTrack = screenStream.getVideoTracks()[0];
-      if (videoSender && screenTrack) {
-        await videoSender.replaceTrack(screenTrack);
-      }
+      if (videoSender) videoSender.replaceTrack(screenTrack);
       document.getElementById('local-video').srcObject = screenStream;
       btn.classList.add('active');
-      btn.innerHTML = '🖥 Демка (вкл)';
       
-      screenTrack.onended = () => {
-        // Возврат на камеру при остановке демки
-        toggleScreen();
-      };
-    } catch(e) {
-      console.log("Демонстрация экрана отменена или недоступна:", e);
-      alert("Не удалось начать демонстрацию экрана");
-    }
+      screenTrack.onended = () => toggleScreen(); // Возврат при остановке демки
+    } catch(e) { console.log("Демка отменена"); }
   } else {
     // Возврат на камеру
     screenStream.getTracks().forEach(t => t.stop());
     screenStream = null;
-    const camTrack = localStream?.getVideoTracks()[0];
-    if (videoSender && camTrack) {
-      await videoSender.replaceTrack(camTrack);
-    }
+    const camTrack = localStream.getVideoTracks()[0];
+    if (videoSender) videoSender.replaceTrack(camTrack);
     document.getElementById('local-video').srcObject = localStream;
     btn.classList.remove('active');
-    btn.innerHTML = '🖥 Демонстрация';
   }
 }
 </script>
