@@ -12,116 +12,108 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// SOCKET.IO
-const io = new Server(server, {
-  cors: { origin: "*" },
-  maxHttpBufferSize: 1e8
-});
+// 1. СОКЕТЫ (Чат)
+const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
-// 🔥 FIX: УБРАЛ path из peerServer
-const peerServer = ExpressPeerServer(server, {
-  debug: true
-});
-
+// 2. PEERJS (Звонки)
+const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
-// БАЗА
+// 3. БАЗОВЫЕ НАСТРОЙКИ
+app.use(compression());
+app.use(express.json({limit: '100mb'}));
+// Раздаем статику из папки public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// 4. БАЗА ДАННЫХ MONGODB
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
 let gfsBucket;
 
-mongoose.connect(MONGO_URI)
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
-    console.log("🔥 Mongo OK");
-    gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-      bucketName: 'uploads'
-    });
-  });
+    console.log("🔥 БАЗА ДАННЫХ ПОДКЛЮЧЕНА");
+    gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
+  }).catch(err => console.log("Mongo Error:", err));
 
-// SCHEMAS
+// СХЕМЫ
 const User = mongoose.model('User', new mongoose.Schema({
-  login: String,
-  password: String,
-  uid: String
+  login: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  uid: { type: String, required: true }
 }));
 
 const Msg = mongoose.model('Msg', new mongoose.Schema({
-  user: String,
-  uid: String,
-  text: String,
-  room: String,
-  fileUrl: String,
-  fileType: String,
-  fileName: String,
-  createdAt: { type: Date, default: Date.now }
+  user: String, uid: String, text: String, room: String,
+  fileUrl: String, fileType: String, fileName: String,
+  createdAt: { type: Date, default: Date.now, expires: 86400 } // Авто-удаление через 24ч
 }));
 
-// MIDDLEWARE
-app.use(compression());
-app.use(express.json({ limit: '100mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-// AUTH
+// 5. АВТОРИЗАЦИЯ
 app.post('/auth', async (req, res) => {
   const { login, password, isReg } = req.body;
-
-  if (isReg) {
-    const hash = await bcrypt.hash(password, 10);
-    const uid = 'u' + Date.now().toString(36);
-
-    await User.create({ login, password: hash, uid });
-    return res.json({ login, uid });
+  if (!login || !password) return res.status(400).json({ error: 'Пустые поля' });
+  
+  try {
+    if (isReg) {
+      const exist = await User.findOne({ login });
+      if (exist) return res.status(400).json({ error: 'Логин занят' });
+      const hash = await bcrypt.hash(password, 10);
+      // Генерируем ЧИСТЫЙ ID (только буквы и цифры), чтобы PeerJS не ругался
+      const uid = 'u' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+      await User.create({ login, password: hash, uid });
+      return res.json({ login, uid });
+    } else {
+      const user = await User.findOne({ login });
+      if (!user) return res.status(400).json({ error: 'Не найден' });
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) return res.status(400).json({ error: 'Неверный пароль' });
+      return res.json({ login, uid: user.uid });
+    }
+  } catch (e) { 
+    res.status(500).json({ error: 'Ошибка сервера' }); 
   }
-
-  const user = await User.findOne({ login });
-  if (!user) return res.json({ error: 'нет юзера' });
-
-  const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.json({ error: 'пароль' });
-
-  res.json({ login, uid: user.uid });
 });
 
-// FILE UPLOAD
+// 6. ЗАГРУЗКА И СКАЧИВАНИЕ ФАЙЛОВ
 const upload = multer({ dest: 'uploads/' });
-
 app.post('/upload', upload.single('file'), (req, res) => {
-  const stream = gfsBucket.openUploadStream(req.file.originalname);
-
-  fs.createReadStream(req.file.path)
-    .pipe(stream)
-    .on('finish', () => {
-      fs.unlinkSync(req.file.path);
-
-      res.json({
-        fileUrl: `/file/${stream.id}`,
-        fileName: req.file.originalname,
-        fileType: req.file.mimetype
-      });
-    });
+  if (!gfsBucket || !req.file) return res.status(500).send('Ошибка БД');
+  
+  let name = req.file.originalname;
+  try { name = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
+  
+  const writeStream = gfsBucket.openUploadStream(name, { contentType: req.file.mimetype });
+  fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
+    fs.promises.unlink(req.file.path).catch(()=>{}); // удаляем временный файл
+    res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: name });
+  });
 });
 
 app.get('/file/:id', (req, res) => {
-  const id = new mongoose.Types.ObjectId(req.params.id);
-  gfsBucket.openDownloadStream(id).pipe(res);
+  if (!gfsBucket) return res.status(503).send("База не готова");
+  const fileId = new mongoose.Types.ObjectId(req.params.id);
+  gfsBucket.openDownloadStream(fileId).pipe(res);
 });
 
-// SOCKETS
+// 7. ЛОГИКА ЧАТА (СОКЕТЫ)
 io.on('connection', (socket) => {
-
   socket.on('join', async (room) => {
     socket.join(room);
-
-    const history = await Msg.find({ room }).sort({ createdAt: 1 }).limit(100);
-    socket.emit('history', history);
+    if (mongoose.connection.readyState === 1) {
+      const history= await Msg.find({ room }).sort({ createdAt: 1 }).limit(100).lean();
+      socket.emit('history', history);
+    }
   });
 
   socket.on('message', async (data) => {
-    const m = await Msg.create(data);
-    io.to(data.room).emit('message', m);
+    try {
+      const m = await Msg.create(data);
+      io.to(data.room).emit('message', m);
+    } catch(e) { console.log("Ошибка отправки:", e); }
   });
-
 });
 
-server.listen(3000, () => {
-  console.log("🚀 http://localhost:3000");
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`);
 });
