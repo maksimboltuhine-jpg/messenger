@@ -8,53 +8,29 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// 1. Настройка Socket.io
-const io = new Server(server, { 
-    cors: { origin: "*" },
-    maxHttpBufferSize: 1e8 
-});
+// 1. Сокеты
+const io = new Server(server, { cors: { origin: "*" } });
 
-// 2. Настройка PeerJS
-const peerServer = ExpressPeerServer(server, { 
-    debug: true, 
-    path: '/' 
-});
+// 2. PeerJS (Звонки)
+const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 app.use('/peerjs', peerServer);
 
-// 3. Базовые настройки
-app.use(express.json({limit: '100mb'}));
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 4. Подключение к базе данных
+// 3. Подключение к БД
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
-mongoose.connect(MONGO_URI)
-  .then(function() { console.log("✅ MongoDB Connected"); })
-  .catch(function(err) { console.log("❌ DB Error:", err); });
+mongoose.connect(MONGO_URI).then(function() { console.log("DB Connected"); });
 
-const Msg = mongoose.model('Msg', { 
-    user: String, 
-    uid: String, 
-    text: String, 
-    room: String, 
-    createdAt: { type: Date, default: Date.now } 
-});
+const Msg = mongoose.model('Msg', { user: String, text: String, room: String, createdAt: { type: Date, default: Date.now } });
 
-// 5. Роуты (пример авторизации)
-app.post('/auth', function(req, res) {
-    const data = req.body;
-    // Упрощенная логика для теста: выдаем ID на основе логина
-    const uid = data.login.toLowerCase().replace(/\s/g, '') + Math.floor(Math.random() * 99);
-    res.json({ login: data.login, uid: uid });
-});
-
-// 6. Сокеты
+// 4. Логика сокетов
 io.on('connection', function(socket) {
     socket.on('join', function(room) {
         socket.join(room);
-        Msg.find({ room: room }).sort({ createdAt: 1 }).limit(50)
-            .then(function(history) {
-                socket.emit('history', history);
-            });
+        Msg.find({ room: room }).sort({ createdAt: 1 }).limit(50).then(function(ms) {
+            socket.emit('history', ms);
+        });
     });
 
     socket.on('message', function(data) {
@@ -66,6 +42,4 @@ io.on('connection', function(socket) {
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', function() {
-    console.log('🚀 Server is running on port ' + PORT);
-});
+server.listen(PORT, '0.0.0.0', function() { console.log('Server running on port ' + PORT); });
