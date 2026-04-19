@@ -3,117 +3,69 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { ExpressPeerServer } = require('peer');
 const mongoose = require('mongoose');
-const multer = require('multer');
-const compression = require('compression');
-const bcrypt = require('bcryptjs');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
-// 1. СОКЕТЫ (Чат)
-const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
+// 1. Настройка Socket.io
+const io = new Server(server, { 
+    cors: { origin: "*" },
+    maxHttpBufferSize: 1e8 
+});
 
-// 2. PEERJS (Звонки)
-const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
+// 2. Настройка PeerJS
+const peerServer = ExpressPeerServer(server, { 
+    debug: true, 
+    path: '/' 
+});
 app.use('/peerjs', peerServer);
 
-// 3. БАЗОВЫЕ НАСТРОЙКИ
-app.use(compression());
+// 3. Базовые настройки
 app.use(express.json({limit: '100mb'}));
-// Раздаем статику из папки public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 4. БАЗА ДАННЫХ MONGODB
+// 4. Подключение к базе данных
 const MONGO_URI = 'mongodb+srv://maksimboltuhine_db_user:Maksim12345@cluster0.peuxhxx.mongodb.net/chatDB?retryWrites=true&w=majority';
-let gfsBucket;
+mongoose.connect(MONGO_URI)
+  .then(function() { console.log("✅ MongoDB Connected"); })
+  .catch(function(err) { console.log("❌ DB Error:", err); });
 
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => {
-    console.log("🔥 БАЗА ДАННЫХ ПОДКЛЮЧЕНА");
-    gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'uploads' });
-  }).catch(err => console.log("Mongo Error:", err));
-
-// СХЕМЫ
-const User = mongoose.model('User', new mongoose.Schema({
-  login: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
-  uid: { type: String, required: true }
-}));
-
-const Msg = mongoose.model('Msg', new mongoose.Schema({
-  user: String, uid: String, text: String, room: String,
-  fileUrl: String, fileType: String, fileName: String,
-  createdAt: { type: Date, default: Date.now, expires: 86400 } // Авто-удаление через 24ч
-}));
-
-// 5. АВТОРИЗАЦИЯ
-app.post('/auth', async (req, res) => {
-  const { login, password, isReg } = req.body;
-  if (!login || !password) return res.status(400).json({ error: 'Пустые поля' });
-  
-  try {
-    if (isReg) {
-      const exist = await User.findOne({ login });
-      if (exist) return res.status(400).json({ error: 'Логин занят' });
-      const hash = await bcrypt.hash(password, 10);
-      // Генерируем ЧИСТЫЙ ID (только буквы и цифры), чтобы PeerJS не ругался
-      const uid = 'u' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
-      await User.create({ login, password: hash, uid });
-      return res.json({ login, uid });
-    } else {
-      const user = await User.findOne({ login });
-      if (!user) return res.status(400).json({ error: 'Не найден' });
-      const valid = await bcrypt.compare(password, user.password);
-      if (!valid) return res.status(400).json({ error: 'Неверный пароль' });
-      return res.json({ login, uid: user.uid });
-    }
-  } catch (e) { 
-    res.status(500).json({ error: 'Ошибка сервера' }); 
-  }
+const Msg = mongoose.model('Msg', { 
+    user: String, 
+    uid: String, 
+    text: String, 
+    room: String, 
+    createdAt: { type: Date, default: Date.now } 
 });
 
-// 6. ЗАГРУЗКА И СКАЧИВАНИЕ ФАЙЛОВ
-const upload = multer({ dest: 'uploads/' });
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!gfsBucket || !req.file) return res.status(500).send('Ошибка БД');
-  
-  let name = req.file.originalname;
-  try { name = Buffer.from(req.file.originalname, 'latin1').toString('utf8'); } catch(e) {}
-  
-  const writeStream = gfsBucket.openUploadStream(name, { contentType: req.file.mimetype });
-  fs.createReadStream(req.file.path).pipe(writeStream).on('finish', () => {
-    fs.promises.unlink(req.file.path).catch(()=>{}); // удаляем временный файл
-    res.json({ fileUrl: `/file/${writeStream.id}`, fileId: writeStream.id, fileType: req.file.mimetype, fileName: name });
-  });
+// 5. Роуты (пример авторизации)
+app.post('/auth', function(req, res) {
+    const data = req.body;
+    // Упрощенная логика для теста: выдаем ID на основе логина
+    const uid = data.login.toLowerCase().replace(/\s/g, '') + Math.floor(Math.random() * 99);
+    res.json({ login: data.login, uid: uid });
 });
 
-app.get('/file/:id', (req, res) => {
-  if (!gfsBucket) return res.status(503).send("База не готова");
-  const fileId = new mongoose.Types.ObjectId(req.params.id);
-  gfsBucket.openDownloadStream(fileId).pipe(res);
-});
+// 6. Сокеты
+io.on('connection', function(socket) {
+    socket.on('join', function(room) {
+        socket.join(room);
+        Msg.find({ room: room }).sort({ createdAt: 1 }).limit(50)
+            .then(function(history) {
+                socket.emit('history', history);
+            });
+    });
 
-// 7. ЛОГИКА ЧАТА (СОКЕТЫ)
-io.on('connection', (socket) => {
-  socket.on('join', async (room) => {
-    socket.join(room);
-    if (mongoose.connection.readyState === 1) {
-      const history= await Msg.find({ room }).sort({ createdAt: 1 }).limit(100).lean();
-      socket.emit('history', history);
-    }
-  });
-
-  socket.on('message', async (data) => {
-    try {
-      const m = await Msg.create(data);
-      io.to(data.room).emit('message', m);
-    } catch(e) { console.log("Ошибка отправки:", e); }
-  });
+    socket.on('message', function(data) {
+        const newMsg = new Msg(data);
+        newMsg.save().then(function() {
+            io.to(data.room).emit('message', data);
+        });
+    });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 СЕРВЕР ЗАПУЩЕН НА ПОРТУ ${PORT}`);
+server.listen(PORT, '0.0.0.0', function() {
+    console.log('🚀 Server is running on port ' + PORT);
 });

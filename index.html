@@ -3,115 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE V23.1 FIXED</title>
+    <title>ULTIMATE SYSTEM v24</title>
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: wss: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https:;">
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
     <style>
         :root { --green: #00ff88; --bg: #0a0a0a; --panel: #161616; --border: #333; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #header { padding: 15px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { background: #222; padding: 10px 15px; border-radius: 12px; max-width: 80%; width: fit-content; }
-        .msg b { color: var(--green); font-size: 12px; display: block; }
-        #input-area { padding: 15px; background: var(--panel); display: flex; gap: 10px; border-top: 1px solid var(--border); }
-        input { flex: 1; background: #000; border: 1px solid var(--border); padding: 12px; color: #fff; border-radius: 10px; outline: none; }
-        button { background: var(--green); border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
         
-        #call-ui { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        video { width: 90%; max-width: 400px; border-radius: 20px; background: #000; }
-        #local-video { width: 80px; height: 110px; position: absolute; top: 20px; right: 20px; border: 2px solid var(--green); }
+        #auth { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .box { background: var(--panel); padding: 30px; border-radius: 20px; width: 340px; border: 1px solid var(--border); }
+        form { display: flex; flex-direction: column; gap: 15px; }
+        input, button { padding: 15px; border-radius: 12px; border: 1px solid var(--border); background: #000; color: #fff; outline: none; font-size: 16px; }
+        button { background: var(--green); color: #000; font-weight: bold; cursor: pointer; border: none; }
+        
+        #app { display: none; flex-direction: column; height: 100vh; }
+        #header { padding: 15px; background: #000; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        #msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+        .m { background: #1a1a1a; padding: 12px; border-radius: 15px; max-width: 85%; border-left: 3px solid var(--green); }
+        .m b { color: var(--green); display: block; font-size: 11px; margin-bottom: 4px; }
+        
+        #input-area { padding: 15px; background: #000; display: flex; gap: 10px; border-top: 1px solid var(--border); }
+        
+        #call-ui { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; }
+        .video-grid { position: relative; width: 100%; max-width: 500px; aspect-ratio: 3/4; background: #111; border-radius: 20px; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        #local-video { width: 100px; height: 140px; position: absolute; top: 20px; right: 20px; border: 2px solid var(--green); border-radius: 15px; z-index: 10; }
     </style>
 </head>
 <body>
 
-<div id="header">
-    <div id="my-id">ID: LOADING...</div>
-    <button onclick="startCallPrompt()">📞 ЗВОНОК</button>
+<div id="auth">
+    <div class="box">
+        <h2 style="text-align:center; color:var(--green); margin-top:0;">ВХОД</h2>
+        <form onsubmit="handleAuth(event)">
+            <input id="l" type="text" placeholder="Логин" autocomplete="username" required>
+            <input id="p" type="password" placeholder="Пароль" autocomplete="current-password" required>
+            <button type="submit">ВОЙТИ</button>
+            <button type="button" onclick="handleAuth(event, true)" style="background:#222; color:#fff;">РЕГИСТРАЦИЯ</button>
+        </form>
+    </div>
 </div>
 
-<div id="msgs"></div>
-
-<div id="input-area">
-    <input type="text" id="m-input" placeholder="Сообщение...">
-    <button onclick="sendMsg()">➤</button>
+<div id="app">
+    <div id="header">
+        <div id="my-id" style="font-family: monospace; color: var(--green);">ID: ---</div>
+        <button onclick="startCall()">📞 ПОЗВОНИТЬ</button>
+    </div>
+    <div id="msgs"></div>
+    <div id="input-area">
+        <input id="txt" placeholder="Сообщение..." autocomplete="off">
+        <button onclick="sendMsg()">➤</button>
+    </div>
 </div>
 
 <div id="call-ui">
-    <video id="remote-video" autoplay playsinline></video>
-    <video id="local-video" autoplay playsinline muted></video>
-    <button style="margin-top:20px; background:#ff3b3b; color:#fff;" onclick="location.reload()">ЗАВЕРШИТЬ</button>
+    <div class="video-grid">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video" autoplay playsinline muted></video>
+    </div>
+    <button onclick="location.reload()" style="margin-top:30px; background:#ff3b3b; color:#fff; width:200px;">ЗАВЕРШИТЬ</button>
 </div>
 
 <script>
-    var socket, peer, localStream;
-    var myName = localStorage.getItem('p_name') || prompt("Твоё имя:") || "Аноним";
-    localStorage.setItem('p_name', myName);
+    var socket, peer, localStream, my;
 
-    var myId = localStorage.getItem('p_id') || 'id-' + Math.floor(Math.random()*9000+1000);
-    localStorage.setItem('p_id', myId);
+    function handleAuth(event, isReg) {
+        if(event) event.preventDefault();
+        var l = document.getElementById('l').value;
+        var p = document.getElementById('p').value;
+        if(!l || !p) return;
 
-    // 1. Инициализация Сокетов
-    socket = io();
-    socket.emit('join', 'MainRoom');
+        fetch('/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login: l, password: p, isReg: isReg })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if(data.error) return alert(data.error);
+            my = data;
+            initSystem();
+        })
+        .catch(function() { alert("Сервер недоступен"); });
+    }
 
-    socket.on('history', function(data) {
-        data.forEach(addMsg);
-    });
+    function initSystem() {
+        document.getElementById('auth').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        document.getElementById('my-id').innerText = "ТВОЙ ID: #" + my.uid;
 
-    socket.on('message', function(data) {
-        addMsg(data);
-    });
+        // Подключаем сокеты
+        socket = io();
+        socket.emit('join', 'MainRoom');
 
-    // 2. Инициализация PeerJS
-    peer = new Peer(myId, {
-        host: window.location.hostname,
-        port: 443,
-        path: '/peerjs',
-        secure: true
-    });
+        socket.on('history', function(ms) {
+            document.getElementById('msgs').innerHTML = '';
+            ms.forEach(addMsg);
+        });
 
-    peer.on('open', function(id) {
-        document.getElementById('my-id').innerText = "Твой ID: " + id;
-    });
+        socket.on('message', function(m) {
+            addMsg(m);
+        });
 
-    peer.on('call', function(call) {
-        if(confirm("Входящий звонок! Ответить?")) {
-            navigator.mediaDevices.getUserMedia({video: true, audio: true})
+        // Подключаем PeerJS с защитой от занятого ID (добавляем случайный хвост)
+        var peerId = my.uid + "-" + Math.floor(Math.random() * 999);
+        peer = new Peer(peerId, {
+            host: window.location.hostname,
+            port: 443,
+            path: '/peerjs',
+            secure: true
+        });
+
+        peer.on('call', function(call) {
+            if(confirm("Звонок! Ответить?")) {
+                navigator.mediaDevices.getUserMedia({video: true, audio: true})
                 .then(function(s) {
                     localStream = s;
                     call.answer(s);
-                    showCallUI(call);
+                    setupVideo(call);
                 });
-        }
-    });
+            }
+        });
+        
+        peer.on('error', function(err) {
+            console.log("Peer Error:", err.type);
+        });
+    }
 
     function sendMsg() {
-        var inp = document.getElementById('m-input');
-        if(!inp.value) return;
-        socket.emit('message', { user: myName, text: inp.value, room: 'MainRoom' });
-        inp.value = '';
+        var t = document.getElementById('txt');
+        if(!t.value) return;
+        socket.emit('message', { user: my.login, uid: my.uid, text: t.value, room: 'MainRoom' });
+        t.value = '';
     }
 
-    function addMsg(data) {
-        var div = document.createElement('div');
-        div.className = 'msg';
-        div.innerHTML = '<b>' + data.user + '</b>' + data.text;
-        document.getElementById('msgs').appendChild(div);
-        document.getElementById('msgs').scrollTop = document.getElementById('msgs').scrollHeight;
+    function addMsg(m) {
+        var d = document.createElement('div');
+        d.className = 'm';
+        d.innerHTML = '<b>' + m.user + '</b>' + m.text;
+        var box = document.getElementById('msgs');
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
     }
 
-    function startCallPrompt() {
-        var tid = prompt("Введи ID друга:");
+    function startCall() {
+        var tid = prompt("Введите ID (только цифры и буквы):");
         if(!tid) return;
         navigator.mediaDevices.getUserMedia({video: true, audio: true})
-            .then(function(s) {
-                localStream = s;
-                var call = peer.call(tid, s);
-                showCallUI(call);
-            });
+        .then(function(s) {
+            localStream = s;
+            var call = peer.call(tid, s);
+            setupVideo(call);
+        })
+        .catch(function() { alert("Включи камеру!"); });
     }
 
-    function showCallUI(call) {
+    function setupVideo(call) {
         document.getElementById('call-ui').style.display = 'flex';
         document.getElementById('local-video').srcObject = localStream;
         call.on('stream', function(rs) {
